@@ -203,9 +203,17 @@ func (bot *ArchiverBot) handleArchiveRequest(s *discordgo.Session, r *discordgo.
 		Description: strings.Join(archivedLinks, "\n"),
 	}
 
+	username := ""
+	user, err := s.User(r.UserID)
+	if err != nil {
+		log.Errorf("unable to look up user with ID %v, err: %v", r.UserID, err)
+		username = "unknown"
+	} else {
+		username = user.Username
+	}
 	log.Debug("sending archive message response in ",
 		guild.Name, "(", guild.ID, "), calling user: ",
-		message.Author.Username, "(", message.Author.ID, ")")
+		username, "(", r.UserID, ")")
 	bot.sendMessage(s, ServerConfig.UseEmbed, ServerConfig.ReplyToOriginalMessage, message, embed)
 
 	// Create a call to Archiver API event

@@ -14,8 +14,8 @@ type botStats struct {
 }
 
 type domainStats struct {
-	ResponseDomainName string
-	Count              int
+	RequestDomainName string
+	Count             int
 }
 
 // getGlobalStats calls the database to get global stats for the bot.
@@ -37,7 +37,7 @@ func (bot *ArchiverBot) getGlobalStats() botStats {
 
 	var topDomainsFormatted string
 	for i := 0; i < 5 && i < len(topDomains); i++ {
-		topDomainsFormatted = topDomainsFormatted + topDomains[i].ResponseDomainName + ": " +
+		topDomainsFormatted = topDomainsFormatted + topDomains[i].RequestDomainName + ": " +
 			fmt.Sprintf("%v", topDomains[i].Count) + "\n"
 	}
 
@@ -74,7 +74,7 @@ func (bot *ArchiverBot) getServerStats(serverId string) botStats {
 
 	var topDomainsFormatted string
 	for i := 0; i < 5 && i < len(topDomains); i++ {
-		topDomainsFormatted = topDomainsFormatted + topDomains[i].ResponseDomainName + ": " +
+		topDomainsFormatted = topDomainsFormatted + topDomains[i].RequestDomainName + ": " +
 			fmt.Sprintf("%v", topDomains[i].Count) + "\n"
 	}
 

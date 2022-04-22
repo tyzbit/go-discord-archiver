@@ -31,7 +31,7 @@ Configure the bot with `!archive config [setting] [value]`. The settings are bel
 | embed | `on` | Whether to use an embed message or just reply with links (Discord will then auto preview them), `on` or `off` |
 | archive | `on` | Whether or not to try archiving pages that don't already have a saved version |
 
-You can also use `!ark stats` to get archive stats for your server.
+You can also use `!archive stats` to get archive stats for your server.
 
 ## Development
 

@@ -31,8 +31,8 @@ func (bot *ArchiverBot) getGlobalStats() botStats {
 	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{AuthorId: serverId}).Count(&MessagesSent)
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{Cached: false}).Count(&CallsToArchiveOrg)
 	bot.DB.Model(&ArchiveEvent{}).Scan(&archiveRows)
-	bot.DB.Model(&ArchiveEvent{}).Select("response_domain_name, count(response_domain_name) as count").
-		Group("response_domain_name").Order("count DESC").Find(&topDomains)
+	bot.DB.Model(&ArchiveEvent{}).Select("request_domain_name, count(request_domain_name) as count").
+		Group("request_domain_name").Order("count DESC").Find(&topDomains)
 	bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{}).Count(&ServersWatched)
 
 	var topDomainsFormatted string
@@ -68,8 +68,8 @@ func (bot *ArchiverBot) getServerStats(serverId string) botStats {
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{ServerID: serverId, Cached: false}).Count(&CallsToArchiveOrg)
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{ServerID: serverId}).Scan(&archiveRows)
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{ServerID: serverId}).
-		Select("response_domain_name, count(response_domain_name) as count").Order("count DESC").
-		Group("response_domain_name").Find(&topDomains)
+		Select("request_domain_name, count(request_domain_name) as count").Order("count DESC").
+		Group("request_domain_name").Find(&topDomains)
 	bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{}).Count(&ServersWatched)
 
 	var topDomainsFormatted string

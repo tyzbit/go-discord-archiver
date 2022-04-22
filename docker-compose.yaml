@@ -1,0 +1,31 @@
+version: "3.9"
+    
+services:
+  db:
+    image: mariadb:10.7
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      MARIADB_ROOT_PASSWORD: archiveroot
+      MARIADB_DATABASE: go_archiver
+      MARIADB_USER: goarchive
+      MARIADB_PASSWORD: goarchive
+    
+  go-discord-archiver:
+    build: .
+    depends_on:
+      - db
+    restart: always
+    environment:
+      DB_HOST: db
+      DB_USER: goarchive
+      DB_PASSWORD: goarchive
+      DB_NAME: go_archiver
+      ADMINISTRATOR_IDS: ${ADMINISTRATOR_IDS}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TOKEN: ${TOKEN}
+volumes:
+  db_data: {}

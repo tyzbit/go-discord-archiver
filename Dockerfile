@@ -8,6 +8,8 @@ RUN apk add \
 &&  go build -ldflags="-s -w"
 
 FROM alpine
+ENV GIN_MODE=release
+
 COPY --from=build /go-discord-archiver /
 
 CMD ["/go-discord-archiver"]

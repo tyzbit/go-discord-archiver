@@ -130,6 +130,9 @@ func main() {
 		}
 	}
 
+	// Start healthcheck handler
+	go archiveBot.StartHealthAPI()
+
 	// These handlers get called whenever there's a corresponding
 	// Discord event.
 	dg.AddHandler(archiveBot.BotReady)

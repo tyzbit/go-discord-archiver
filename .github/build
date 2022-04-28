@@ -1,5 +1,6 @@
 #!/bin/bash
 
+APPNAME="go-discord-archiver"
 BUILDCONFIGS=(
   "darwin amd64"
   "darwin arm64"
@@ -16,5 +17,5 @@ for bc in "${BUILDCONFIGS[@]}"; do
   if [[ "${os}" = "windows" ]]; then
     ext=".exe"
   fi
-  GOOS=darwin GOARCH=amd64 go build -o "bitcoin-balance-notifier-${os}-${arch}${ext}"
+  GOOS="${os}" GOARCH="${arch}" go build -o "${APPNAME}-${os}-${arch}${ext}"
 done

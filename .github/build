@@ -1,0 +1,20 @@
+#!/bin/bash
+
+BUILDCONFIGS=(
+  "darwin amd64"
+  "darwin arm64"
+  "linux amd64"
+  "linux arm"
+  "linux arm64"
+  "windows amd64"
+)
+
+for bc in "${BUILDCONFIGS[@]}"; do
+  os=${bc% *}
+  arch=${bc#* }
+  ext=""
+  if [[ "${os}" = "windows" ]]; then
+    ext=".exe"
+  fi
+  GOOS=darwin GOARCH=amd64 go build -o "bitcoin-balance-notifier-${os}-${arch}${ext}"
+done

@@ -1,5 +1,5 @@
 .env
 .DS_Store
 __debug_bin
-go-discord-archiver
+go-discord-archiver*
 local.db

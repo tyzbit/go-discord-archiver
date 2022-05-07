@@ -149,8 +149,7 @@ func main() {
 	dg.Identify.Intents = discordIntents
 
 	// Open a websocket connection to Discord and begin listening.
-	err = dg.Open()
-	if err != nil {
+	if err := dg.Open(); err != nil {
 		log.Fatal("error opening connection to discord: ", err)
 	}
 

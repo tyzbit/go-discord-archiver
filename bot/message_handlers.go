@@ -3,6 +3,7 @@ package bot
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
@@ -11,11 +12,27 @@ import (
 	goarchive "github.com/tyzbit/go-archive"
 )
 
+// typeInChannel sets the typing indicator for a channel. The indicator is cleared
+// when a message is sent.
+func typeInChannel(channel chan bool, s *discordgo.Session, channelID string) {
+	for {
+		select {
+		case <-channel:
+			return
+		default:
+			if err := s.ChannelTyping(channelID); err != nil {
+				log.Error("unable to set typing indicator: ", err)
+			}
+			time.Sleep(time.Second * 5)
+		}
+	}
+}
+
+
 // handleMessageWithStats takes a discord session and a user ID and sends a
 // message to the user with stats about the bot.
 func (bot *ArchiverBot) handleMessageWithStats(s *discordgo.Session, m *discordgo.MessageCreate) error {
 	directMessage := (m.GuildID == "")
-
 	var stats botStats
 	logMessage := ""
 	if !directMessage {
@@ -71,6 +88,9 @@ func (bot *ArchiverBot) handleMessageWithStats(s *discordgo.Session, m *discordg
 // calls go-archiver with a []string of URLs parsed from the message.
 // It then sends an embed with the resulting archived URLs.
 func (bot *ArchiverBot) handleArchiveRequest(s *discordgo.Session, r *discordgo.MessageReactionAdd, rearchive bool) error {
+	typingStop := make(chan bool, 1)
+	go typeInChannel(typingStop, s, r.ChannelID)
+	
 	ServerConfig := bot.getServerConfig(r.GuildID)
 	if !ServerConfig.ArchiveEnabled {
 		log.Info("URLs were not archived because automatic archive is not enabled")
@@ -214,6 +234,7 @@ func (bot *ArchiverBot) handleArchiveRequest(s *discordgo.Session, r *discordgo.
 	log.Debug("sending archive message response in ",
 		guild.Name, "(", guild.ID, "), calling user: ",
 		username, "(", r.UserID, ")")
+	typingStop <- true
 	bot.sendMessage(s, ServerConfig.UseEmbed, ServerConfig.ReplyToOriginalMessage, message, embed)
 
 	// Create a call to Archiver API event

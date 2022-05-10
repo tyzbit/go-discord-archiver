@@ -105,7 +105,12 @@ func (bot *ArchiverBot) MessageReactionAdd(s *discordgo.Session, r *discordgo.Me
 			log.Errorf("problem handling archive request: %v", err)
 		}
 	}
-	if r.MessageReaction.Emoji.Name == "🔁" {
+	// Only handle a repeat reaction if the message has a "🏛️" on it already
+	users, err := s.MessageReactions(r.ChannelID, r.MessageID, "🏛️", 1, "","")
+	if err != nil {
+		log.Warnf("Error getting reactions for message id: %s, channel: %s", r.MessageID, r.ChannelID)
+	}
+	if r.MessageReaction.Emoji.Name == "🔁" && len(users) > 0 {
 		err := bot.handleArchiveRequest(s, r, true)
 		if err != nil {
 			log.Errorf("problem handling archive request: %v", err)

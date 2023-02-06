@@ -36,8 +36,8 @@ func GetLatestURL(url string, retryAttempts uint) (archiveUrl string, exists boo
 	resp := http.Response{}
 	// This obliterates the `http` namespace so it must come after
 	// creating the response object.
-	http := http.Client{}
 	if err := retry.Do(func() error {
+		http := http.Client{}
 		resp, err := http.Get(archiveApi + "/wayback/available?url=" + url)
 		if err != nil {
 			return fmt.Errorf("error calling wayback api: %w", err)

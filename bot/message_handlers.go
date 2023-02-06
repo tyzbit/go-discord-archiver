@@ -108,19 +108,19 @@ func (bot *ArchiverBot) handleArchiveRequest(s *discordgo.Session, r *discordgo.
 		return fmt.Errorf("unable to look up message by id: %v", r.MessageID)
 	}
 	xurlsStrict := xurls.Strict
-	urls := xurlsStrict.FindAllString(message.Content, -1)
-	if len(urls) == 0 {
+	messageUrls := xurlsStrict.FindAllString(message.Content, -1)
+	if len(messageUrls) == 0 {
 		return fmt.Errorf("found 0 URLs in message")
 	}
 
-	log.Debug("URLs parsed from message: ", strings.Join(urls, ", "))
+	log.Debug("URLs parsed from message: ", strings.Join(messageUrls, ", "))
 
 	// This UUID will be used to tie together the ArchiveEventEvent,
 	// the archiveRequestUrls and the archiveResponseUrls.
 	archiveEventUUID := uuid.New().String()
 
 	var archives []ArchiveEvent
-	for _, url := range urls {
+	for _, url := range messageUrls {
 		domainName, err := getDomainName(url)
 		if err != nil {
 			log.Error("unable to get domain name for url: ", url)
@@ -174,7 +174,7 @@ func (bot *ArchiverBot) handleArchiveRequest(s *discordgo.Session, r *discordgo.
 		if archive.ResponseURL == "" {
 			log.Debug("need to call archive.org api for ", archive.RequestURL)
 
-			urls = []string{}
+			urls := []string{}
 			if rearchive {
 				url, err := goarchive.ArchiveURL(archive.RequestURL)
 				if err != nil || url == "" {
@@ -184,7 +184,7 @@ func (bot *ArchiverBot) handleArchiveRequest(s *discordgo.Session, r *discordgo.
 				urls = append(urls, url)
 			} else {
 				var errs []error
-				urls, errs = goarchive.GetLatestURLs([]string{archive.RequestURL}, ServerConfig.AutoArchive)
+				urls, errs = goarchive.GetLatestURLs([]string{archive.RequestURL}, ServerConfig.RetryAttempts, ServerConfig.AutoArchive)
 				for _, err := range errs {
 					if err != nil {
 						log.Errorf("error archiving url: %v", err)
@@ -212,6 +212,16 @@ func (bot *ArchiverBot) handleArchiveRequest(s *discordgo.Session, r *discordgo.
 		}
 	}
 
+	if len(archivedLinks) < len(messageUrls) {
+		log.Errorf("did not receive the same number of archived links as submitted URLs")
+		if len(archivedLinks) == 0 {
+			log.Errorf("did not receive any Archive.org links")
+			archivedLinks = []string{"I was unable to get any Wayback Machine URLs. " + 
+								"Most of the time, this is " +
+								"due to rate-limiting by Archive.org. " + 
+								"Please try again by adding the 'repeat' emoji to the message."}
+		}
+	}
 	plural := ""
 	if len(archivedLinks) > 1 {
 		plural = "s"

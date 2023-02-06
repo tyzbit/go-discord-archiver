@@ -2,6 +2,9 @@
 ## explicit; go 1.16
 github.com/BurntSushi/toml
 github.com/BurntSushi/toml/internal
+# github.com/avast/retry-go v3.0.0+incompatible
+## explicit
+github.com/avast/retry-go
 # github.com/bwmarrin/discordgo v0.25.0
 ## explicit; go 1.13
 github.com/bwmarrin/discordgo
@@ -81,7 +84,7 @@ github.com/mvdan/xurls
 # github.com/sirupsen/logrus v1.8.1
 ## explicit; go 1.13
 github.com/sirupsen/logrus
-# github.com/tyzbit/go-archive v0.0.0-20220422014241-aa077f0a8174
+# github.com/tyzbit/go-archive v0.0.0-20230206195843-20514a4efc44
 ## explicit; go 1.18
 github.com/tyzbit/go-archive
 # github.com/ugorji/go/codec v1.1.7

@@ -1,5 +1,7 @@
 github.com/BurntSushi/toml v0.4.1 h1:GaI7EiDXDRfa8VshkTj7Fym7ha+y8/XxIgD2okUIjLw=
 github.com/BurntSushi/toml v0.4.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
+github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHSxpiH9JdtuBj0=
+github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
 github.com/bwmarrin/discordgo v0.25.0 h1:NXhdfHRNxtwso6FPdzW2i3uBvvU7UIQTghmV2T4nqAs=
 github.com/bwmarrin/discordgo v0.25.0/go.mod h1:NJZpH+1AfhIcyQsPeuBKsUtYrRnjkyu0kIVMCHkZtRY=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -67,6 +69,14 @@ github.com/tyzbit/go-archive v0.0.0-20220422011230-e4ccafb403ab h1:98S4kV6VGEV9F
 github.com/tyzbit/go-archive v0.0.0-20220422011230-e4ccafb403ab/go.mod h1:+lKbHcRfCD67HK5VtyeMKQAsdZlbP5eq08sTlWzPQq4=
 github.com/tyzbit/go-archive v0.0.0-20220422014241-aa077f0a8174 h1:0L+g6CllW/VPERnQcWc4FtTeGBiNkIIdK3HBupbn2aI=
 github.com/tyzbit/go-archive v0.0.0-20220422014241-aa077f0a8174/go.mod h1:+lKbHcRfCD67HK5VtyeMKQAsdZlbP5eq08sTlWzPQq4=
+github.com/tyzbit/go-archive v0.0.0-20230206185234-e0ab8e1dc3de h1:v/UKYFZspLSbhTDoTqkUQAetYWsAemQyxh0R+2b6hzA=
+github.com/tyzbit/go-archive v0.0.0-20230206185234-e0ab8e1dc3de/go.mod h1:D8vNUS0ZU4ILov2Igxw1h+Kj7aeyapjUU1ruPLEx9gw=
+github.com/tyzbit/go-archive v0.0.0-20230206192309-94b220444e20 h1:bsOewcV4u7FFxaunSAqW9uwU2iaqOR+5DsisO0NRqzM=
+github.com/tyzbit/go-archive v0.0.0-20230206192309-94b220444e20/go.mod h1:D8vNUS0ZU4ILov2Igxw1h+Kj7aeyapjUU1ruPLEx9gw=
+github.com/tyzbit/go-archive v0.0.0-20230206193458-f613421690a2 h1:adhdKsU62u6V50w5Wqw7RYR9DUhUpPS4rxuqdQfgN0g=
+github.com/tyzbit/go-archive v0.0.0-20230206193458-f613421690a2/go.mod h1:D8vNUS0ZU4ILov2Igxw1h+Kj7aeyapjUU1ruPLEx9gw=
+github.com/tyzbit/go-archive v0.0.0-20230206195843-20514a4efc44 h1:eFnPPxL7hFNDJ+EKmW6OTk8MEr5C04+2gKqsP1C10F8=
+github.com/tyzbit/go-archive v0.0.0-20230206195843-20514a4efc44/go.mod h1:D8vNUS0ZU4ILov2Igxw1h+Kj7aeyapjUU1ruPLEx9gw=
 github.com/ugorji/go v1.1.7 h1:/68gy2h+1mWMrwZFeD1kQialdSzAb432dtpeJ42ovdo=
 github.com/ugorji/go v1.1.7/go.mod h1:kZn38zHttfInRq0xu/PH0az30d+z6vm202qpg1oXVMw=
 github.com/ugorji/go/codec v1.1.7 h1:2SvQaVZ1ouYrrKKwoSk2pzd4A9evlKJb9oTL+OaLUSs=

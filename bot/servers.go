@@ -2,6 +2,7 @@ package bot
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,7 +25,13 @@ type ServerConfig struct {
 	ReplyToOriginalMessage bool   `pretty:"Reply to original message (embed must be off) (replyto)"`
 	UseEmbed               bool   `pretty:"Use embed to reply (embed)"`
 	AutoArchive            bool   `pretty:"Automatically try archiving a page if it is not found (archive)"`
+	RetryAttempts          uint   `pretty:"Number of attempts the bot should make to archive a URL. Max 10"`
 }
+
+const (
+	MinAllowedRetryAttempts = 1
+	MaxAllowedRetryAttempts = 10
+)
 
 var (
 	defaultServerConfig ServerConfig = ServerConfig{
@@ -34,6 +41,7 @@ var (
 		ReplyToOriginalMessage: false,
 		UseEmbed:               true,
 		AutoArchive:            true,
+		RetryAttempts:          4,
 	}
 
 	archiverRepoUrl string = "https://github.com/tyzbit/go-discord-archiver"
@@ -90,6 +98,7 @@ func (bot *ArchiverBot) getServerConfig(guildId string) ServerConfig {
 // setServerConfig sets a single config setting for the calling server. Syntax:
 // (commandPrefix) config [setting] [value]
 func (bot *ArchiverBot) setServerConfig(s *discordgo.Session, m *discordgo.Message) error {
+	var scError error
 	// Look up the guild from the message
 	guild, err := s.Guild(m.GuildID)
 	if err != nil {
@@ -107,9 +116,9 @@ func (bot *ArchiverBot) setServerConfig(s *discordgo.Session, m *discordgo.Messa
 
 	command := strings.Split(m.Content, " ")
 	var setting, value string
-	if len(command) == 4 {
-		setting = command[2]
-		value = command[3]
+	if len(command) == 5 {
+		setting = command[3]
+		value = command[4]
 	} else {
 		setting = "get"
 	}
@@ -120,6 +129,16 @@ func (bot *ArchiverBot) setServerConfig(s *discordgo.Session, m *discordgo.Messa
 	}
 
 	tx := &gorm.DB{}
+	var valueIsStringBoolean = false
+	var valueIsNumber = false
+	var description string
+	var errDetails string
+	if (value == "on" || value == "off") {
+		valueIsStringBoolean = true
+	}
+	if _, err := strconv.Atoi(value); err == nil {
+		valueIsNumber = true
+	}
 	switch setting {
 	// "get" is the only command that does not alter the database.
 	case "get":
@@ -129,13 +148,34 @@ func (bot *ArchiverBot) setServerConfig(s *discordgo.Session, m *discordgo.Messa
 		})
 		return nil
 	case "switch":
-		tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("archive_enabled", value == "on")
+		if valueIsStringBoolean {
+			tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("archive_enabled", value == "on")
+		}
 	case "replyto":
-		tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("reply_to_original_message", value == "on")
+		if valueIsStringBoolean {
+			tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("reply_to_original_message", value == "on")
+		}
 	case "embed":
-		tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("use_embed", value == "on")
+		if valueIsStringBoolean {
+			tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("use_embed", value == "on")
+		}
 	case "archive":
-		tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("auto_archive", value == "on")
+		if valueIsStringBoolean {
+			tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("auto_archive", value == "on")
+		}
+	case "attempts":
+		if valueIsNumber {
+			uintValue, err := strconv.ParseUint(value, 10, 0)
+			if err != nil {
+				errDetails = "not a number."
+			}
+			if (uintValue >= MinAllowedRetryAttempts && uintValue <= MaxAllowedRetryAttempts) {
+				tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("retry_attempts", uintValue)
+			} else {
+				errDetails = "not between " + 
+					fmt.Sprint(MinAllowedRetryAttempts) + " and " + fmt.Sprint(MaxAllowedRetryAttempts) + "."
+			}
+		}
 	default:
 		bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage, m, errorEmbed)
 		return nil
@@ -143,16 +183,19 @@ func (bot *ArchiverBot) setServerConfig(s *discordgo.Session, m *discordgo.Messa
 
 	// We only expect one server to be updated at a time. Otherwise, return an error.
 	if tx.RowsAffected != 1 {
-		return fmt.Errorf("did not expect %v rows to be affected updating "+
-			"server config for server: %v(%v)", fmt.Sprintf("%v", tx.RowsAffected), guild.Name, guild.ID)
+		errorEmbed.Title = "Unable to set " + setting + " to " + value + ", " + errDetails
+		bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage, m, errorEmbed)
+		scError = fmt.Errorf("did not expect %v rows to be affected updating "+
+		"server config for server: %v(%v)", fmt.Sprintf("%v", tx.RowsAffected), guild.Name, guild.ID)
+	} else {
+		description = setting + " set to " + value
+		scError = nil
+		bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage, m, &discordgo.MessageEmbed{
+			Title:       "Setting Updated",
+			Description: description,
+		})
 	}
-
-	bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage, m, &discordgo.MessageEmbed{
-		Title:       "Setting Updated",
-		Description: setting + " set to " + value,
-	})
-
-	return nil
+	return scError
 }
 
 // updateServersWatched updates the servers watched value

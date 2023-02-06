@@ -8,7 +8,6 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/mvdan/xurls v1.1.0
 	github.com/sirupsen/logrus v1.8.1
-	github.com/tyzbit/go-archive v0.0.0-20220422014241-aa077f0a8174
 	gorm.io/driver/mysql v1.3.3
 	gorm.io/driver/sqlite v1.3.1
 	gorm.io/gorm v1.23.4
@@ -16,6 +15,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v0.4.1 // indirect
+	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/gin-gonic/gin v1.7.7 // indirect
 	github.com/go-playground/locales v0.13.0 // indirect
@@ -35,6 +35,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.9 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
 	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect
+	github.com/tyzbit/go-archive v0.0.0-20230206195843-20514a4efc44 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
 	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect

@@ -99,8 +99,9 @@ func (bot *ArchiverBot) MessageCreate(s *discordgo.Session, m *discordgo.Message
 // This function will be called every time a new react is created on any message
 // that the authenticated bot has access to.
 func (bot *ArchiverBot) MessageReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
+	ServerConfig := bot.getServerConfig(r.GuildID)
 	if r.MessageReaction.Emoji.Name == "🏛️" {
-		err := bot.handleArchiveRequest(s, r, false)
+		err := bot.handleArchiveRequest(s, r, ServerConfig.SkipLookup)
 		if err != nil {
 			log.Errorf("problem handling archive request: %v", err)
 		}
@@ -111,7 +112,7 @@ func (bot *ArchiverBot) MessageReactionAdd(s *discordgo.Session, r *discordgo.Me
 		log.Warnf("Error getting reactions for message id: %s, channel: %s", r.MessageID, r.ChannelID)
 	}
 	if r.MessageReaction.Emoji.Name == "🔁" && len(users) > 0 {
-		err := bot.handleArchiveRequest(s, r, true)
+		err := bot.handleArchiveRequest(s, r, ServerConfig.SkipLookup)
 		if err != nil {
 			log.Errorf("problem handling archive request: %v", err)
 		}

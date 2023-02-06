@@ -79,6 +79,8 @@ github.com/tyzbit/go-archive v0.0.0-20230206195843-20514a4efc44 h1:eFnPPxL7hFNDJ
 github.com/tyzbit/go-archive v0.0.0-20230206195843-20514a4efc44/go.mod h1:D8vNUS0ZU4ILov2Igxw1h+Kj7aeyapjUU1ruPLEx9gw=
 github.com/tyzbit/go-archive v0.0.0-20230206214528-8c7d3d901b0f h1:hH1l6N+2Cgr3/Lh31zifSJW1yHGi5VPojTmAHujq+X4=
 github.com/tyzbit/go-archive v0.0.0-20230206214528-8c7d3d901b0f/go.mod h1:D8vNUS0ZU4ILov2Igxw1h+Kj7aeyapjUU1ruPLEx9gw=
+github.com/tyzbit/go-archive v0.0.0-20230206220046-c25482a1430d h1:AyuV30tBZ5KXOIel0P6YPRamMSkPC0JosTSRE0x0UpA=
+github.com/tyzbit/go-archive v0.0.0-20230206220046-c25482a1430d/go.mod h1:D8vNUS0ZU4ILov2Igxw1h+Kj7aeyapjUU1ruPLEx9gw=
 github.com/ugorji/go v1.1.7 h1:/68gy2h+1mWMrwZFeD1kQialdSzAb432dtpeJ42ovdo=
 github.com/ugorji/go v1.1.7/go.mod h1:kZn38zHttfInRq0xu/PH0az30d+z6vm202qpg1oXVMw=
 github.com/ugorji/go/codec v1.1.7 h1:2SvQaVZ1ouYrrKKwoSk2pzd4A9evlKJb9oTL+OaLUSs=

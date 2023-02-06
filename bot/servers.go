@@ -21,11 +21,12 @@ type ServerRegistration struct {
 type ServerConfig struct {
 	DiscordId              string `gorm:"primaryKey" pretty:"Server ID"`
 	Name                   string `pretty:"Server Name"`
-	ArchiveEnabled         bool   `pretty:"ArchiveEvent Enabled"`
+	ArchiveEnabled         bool   `pretty:"Bot functionality enabled (switch)"`
 	ReplyToOriginalMessage bool   `pretty:"Reply to original message (embed must be off) (replyto)"`
 	UseEmbed               bool   `pretty:"Use embed to reply (embed)"`
 	AutoArchive            bool   `pretty:"Automatically try archiving a page if it is not found (archive)"`
-	RetryAttempts          uint   `pretty:"Number of attempts the bot should make to archive a URL. Max 10"`
+	SkipLookup             bool   `pretty:"Skip straight to submitting the URL for immediate archival (skip)"`
+	RetryAttempts          uint   `pretty:"Number of attempts the bot should make to archive a URL - Max 10 (retry)"`
 }
 
 const (
@@ -41,6 +42,7 @@ var (
 		ReplyToOriginalMessage: false,
 		UseEmbed:               true,
 		AutoArchive:            true,
+		SkipLookup:             true,
 		RetryAttempts:          4,
 	}
 
@@ -158,6 +160,10 @@ func (bot *ArchiverBot) setServerConfig(s *discordgo.Session, m *discordgo.Messa
 	case "embed":
 		if valueIsStringBoolean {
 			tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("use_embed", value == "on")
+		}
+	case "skip":
+		if valueIsStringBoolean {
+			tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("skip_lookup", value == "on")
 		}
 	case "archive":
 		if valueIsStringBoolean {

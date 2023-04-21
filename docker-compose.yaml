@@ -27,6 +27,7 @@ services:
       DB_PASSWORD: goarchive
       DB_NAME: go_archiver
       ADMINISTRATOR_IDS: ${ADMINISTRATOR_IDS}
+      COOKIE: ${COOKIE}
       LOG_LEVEL: ${LOG_LEVEL}
       TOKEN: ${TOKEN}
 volumes:

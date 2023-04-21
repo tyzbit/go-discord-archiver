@@ -84,7 +84,7 @@ github.com/mvdan/xurls
 # github.com/sirupsen/logrus v1.8.1
 ## explicit; go 1.13
 github.com/sirupsen/logrus
-# github.com/tyzbit/go-archive v0.0.0-20230206214528-8c7d3d901b0f
+# github.com/tyzbit/go-archive v0.0.0-20230420202510-bdd2e503249a
 ## explicit; go 1.18
 github.com/tyzbit/go-archive
 # github.com/ugorji/go/codec v1.1.7

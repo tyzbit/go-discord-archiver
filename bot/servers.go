@@ -2,13 +2,10 @@ package bot
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
 type ServerRegistration struct {
@@ -19,31 +16,22 @@ type ServerRegistration struct {
 }
 
 type ServerConfig struct {
-	DiscordId              string `gorm:"primaryKey" pretty:"Server ID"`
-	Name                   string `pretty:"Server Name"`
-	ArchiveEnabled         bool   `pretty:"Bot functionality enabled (switch)"`
-	ReplyToOriginalMessage bool   `pretty:"Reply to original message (embed must be off) (replyto)"`
-	UseEmbed               bool   `pretty:"Use embed to reply (embed)"`
-	AutoArchive            bool   `pretty:"Automatically try archiving a page if it is not found (archive)"`
-	SkipLookup             bool   `pretty:"Skip straight to submitting the URL for immediate archival (skip)"`
-	RetryAttempts          uint   `pretty:"Number of attempts the bot should make to archive a URL - Max 10 (retry)"`
+	DiscordId          string `gorm:"primaryKey" pretty:"Server ID"`
+	Name               string `pretty:"Server Name"`
+	ArchiveEnabled     bool   `pretty:"Bot enabled"`
+	AlwaysArchiveFirst bool   `pretty:"Archive the page first (slower)"`
+	ShowDetails        bool   `pretty:"Show extra details"`
+	RetryAttempts      uint   `pretty:"Number of attempts the bot should make to archive a URL"`
 }
-
-const (
-	MinAllowedRetryAttempts = 1
-	MaxAllowedRetryAttempts = 10
-)
 
 var (
 	defaultServerConfig ServerConfig = ServerConfig{
-		DiscordId:              "0",
-		Name:                   "default",
-		ArchiveEnabled:         true,
-		ReplyToOriginalMessage: false,
-		UseEmbed:               true,
-		AutoArchive:            true,
-		SkipLookup:             true,
-		RetryAttempts:          4,
+		DiscordId:          "0",
+		Name:               "default",
+		ArchiveEnabled:     true,
+		AlwaysArchiveFirst: false,
+		ShowDetails:        true,
+		RetryAttempts:      1,
 	}
 
 	archiverRepoUrl string = "https://github.com/tyzbit/go-discord-archiver"
@@ -51,12 +39,12 @@ var (
 
 // registerOrUpdateGuild checks if a guild is already registered in the database. If not,
 // it creates it with sensibile defaults.
-func (bot *ArchiverBot) registerOrUpdateGuild(s *discordgo.Session, g *discordgo.Guild) error {
+func (bot *ArchiverBot) registerOrUpdateGuild(g *discordgo.Guild) error {
 	var registration ServerRegistration
 	bot.DB.Find(&registration, g.ID)
 
 	// Do a lookup for the full guild object
-	guild, err := s.Guild(g.ID)
+	guild, err := bot.DG.Guild(g.ID)
 	if err != nil {
 		return fmt.Errorf("unable to look up guild by id: %v", g.ID)
 	}
@@ -78,7 +66,7 @@ func (bot *ArchiverBot) registerOrUpdateGuild(s *discordgo.Session, g *discordgo
 		}
 	}
 
-	err = bot.updateServersWatched(s)
+	err = bot.updateServersWatched()
 	if err != nil {
 		return fmt.Errorf("unable to update servers watched: %v", err)
 	}
@@ -97,116 +85,34 @@ func (bot *ArchiverBot) getServerConfig(guildId string) ServerConfig {
 	return sc
 }
 
-// setServerConfig sets a single config setting for the calling server. Syntax:
-// (commandPrefix) config [setting] [value]
-func (bot *ArchiverBot) setServerConfig(s *discordgo.Session, m *discordgo.Message) error {
-	var scError error
-	// Look up the guild from the message
-	guild, err := s.Guild(m.GuildID)
+// updateServerSetting updates a server setting according to the
+// column name (setting) and the value
+func (bot *ArchiverBot) updateServerSetting(guildID string, setting string,
+	value interface{}) (sc ServerConfig, success bool) {
+	guild, err := bot.DG.Guild(guildID)
 	if err != nil {
-		return fmt.Errorf("unable to look up guild by id: %v", m.GuildID)
+		log.Errorf("unable to look up guild by id: %v", guildID)
+		return sc, false
 	}
 
-	// Get the server config. If empty, register the server.
-	sc := bot.getServerConfig(m.GuildID)
-	if sc == defaultServerConfig {
-		err = bot.registerOrUpdateGuild(s, guild)
-		if err != nil {
-			return fmt.Errorf("unable to register guild: %w", err)
-		}
-	}
+	tx := bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).
+		Update(setting, value)
 
-	command := strings.Split(m.Content, " ")
-	var setting, value string
-	if len(command) == 5 {
-		setting = command[3]
-		value = command[4]
-	} else {
-		setting = "get"
-	}
-
-	errorEmbed := &discordgo.MessageEmbed{
-		Title:       "Unable to set " + value,
-		Description: "See " + archiverRepoUrl + " for usage",
-	}
-
-	tx := &gorm.DB{}
-	var valueIsStringBoolean = false
-	var valueIsNumber = false
-	var description string
-	var errDetails string
-	if (value == "on" || value == "off") {
-		valueIsStringBoolean = true
-	}
-	if _, err := strconv.Atoi(value); err == nil {
-		valueIsNumber = true
-	}
-	switch setting {
-	// "get" is the only command that does not alter the database.
-	case "get":
-		bot.sendMessage(s, true, false, m, &discordgo.MessageEmbed{
-			Title:  "Archiver Config",
-			Fields: structToPrettyDiscordFields(sc),
-		})
-		return nil
-	case "switch":
-		if valueIsStringBoolean {
-			tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("archive_enabled", value == "on")
-		}
-	case "replyto":
-		if valueIsStringBoolean {
-			tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("reply_to_original_message", value == "on")
-		}
-	case "embed":
-		if valueIsStringBoolean {
-			tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("use_embed", value == "on")
-		}
-	case "skip":
-		if valueIsStringBoolean {
-			tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("skip_lookup", value == "on")
-		}
-	case "archive":
-		if valueIsStringBoolean {
-			tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("auto_archive", value == "on")
-		}
-	case "attempts":
-		if valueIsNumber {
-			uintValue, err := strconv.ParseUint(value, 10, 0)
-			if err != nil {
-				errDetails = "not a number."
-			}
-			if (uintValue >= MinAllowedRetryAttempts && uintValue <= MaxAllowedRetryAttempts) {
-				tx = bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).Update("retry_attempts", uintValue)
-			} else {
-				errDetails = "not between " + 
-					fmt.Sprint(MinAllowedRetryAttempts) + " and " + fmt.Sprint(MaxAllowedRetryAttempts) + "."
-			}
-		}
-	default:
-		bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage, m, errorEmbed)
-		return nil
-	}
+	// Now we get the current server config and return it
+	sc = bot.getServerConfig(guildID)
 
 	// We only expect one server to be updated at a time. Otherwise, return an error.
 	if tx.RowsAffected != 1 {
-		errorEmbed.Title = "Unable to set " + setting + " to " + value + ", " + errDetails
-		bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage, m, errorEmbed)
-		scError = fmt.Errorf("did not expect %v rows to be affected updating "+
-		"server config for server: %v(%v)", fmt.Sprintf("%v", tx.RowsAffected), guild.Name, guild.ID)
-	} else {
-		description = setting + " set to " + value
-		scError = nil
-		bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage, m, &discordgo.MessageEmbed{
-			Title:       "Setting Updated",
-			Description: description,
-		})
+		log.Errorf("did not expect %v rows to be affected updating "+
+			"server config for server: %v(%v)", fmt.Sprintf("%v", tx.RowsAffected), guild.Name, guild.ID)
+		return sc, false
 	}
-	return scError
+	return sc, true
 }
 
 // updateServersWatched updates the servers watched value
 // in both the local bot stats and in the database. It is allowed to fail.
-func (bot *ArchiverBot) updateServersWatched(s *discordgo.Session) error {
+func (bot *ArchiverBot) updateServersWatched() error {
 	var serversWatched int64
 	bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{}).Count(&serversWatched)
 
@@ -220,7 +126,7 @@ func (bot *ArchiverBot) updateServersWatched(s *discordgo.Session) error {
 
 	if !bot.StartingUp {
 		log.Debug("updating discord bot status")
-		err := s.UpdateStatusComplex(*updateStatusData)
+		err := bot.DG.UpdateStatusComplex(*updateStatusData)
 		if err != nil {
 			return fmt.Errorf("unable to update discord bot status: %w", err)
 		}

@@ -31,6 +31,7 @@ var (
 		&bot.ArchiveEvent{},
 		&bot.ArchiveEventEvent{},
 		&bot.MessageEvent{},
+		&bot.InteractionEvent{},
 	}
 
 	sqlitePath      string        = "/var/go-discord-archiver/local.sqlite"
@@ -137,8 +138,8 @@ func main() {
 	// Discord event.
 	dg.AddHandler(archiveBot.BotReady)
 	dg.AddHandler(archiveBot.GuildCreate)
-	dg.AddHandler(archiveBot.MessageCreate)
 	dg.AddHandler(archiveBot.MessageReactionAdd)
+	dg.AddHandler(archiveBot.InteractionInit)
 
 	// We have to be explicit about what we want to receive. In addition,
 	// some intents require additional permissions, which must be granted
@@ -156,11 +157,11 @@ func main() {
 	// Wait here until CTRL-C or other term signal is received.
 	log.Info("bot started")
 
+	// Cleanly close down the Discord session.
+	defer dg.Close()
+
 	// Listen for signals from the OS
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
-
-	// Cleanly close down the Discord session.
-	dg.Close()
 }

@@ -283,7 +283,7 @@ func (bot *ArchiverBot) InteractionInit(s *discordgo.Session, i *discordgo.Inter
 
 				bot.createInteractionEvent(InteractionEvent{
 					UserID:        i.Interaction.Member.User.ID,
-					Username:      i.Interaction.Member.User.ID,
+					Username:      i.Interaction.Member.User.Username,
 					InteractionId: i.ID,
 					ChannelId:     i.Interaction.ChannelID,
 					ServerID:      i.Interaction.GuildID,

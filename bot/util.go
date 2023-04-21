@@ -9,6 +9,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
+	globals "github.com/tyzbit/go-discord-archiver/globals"
 )
 
 // getFieldNamesByType takes an interface as an argument
@@ -65,8 +66,9 @@ func structToPrettyDiscordFields(i any) []*discordgo.MessageEmbedField {
 		for key, value := range stringMap {
 			formattedKey := getTagValue(i, key, "pretty")
 			newField := discordgo.MessageEmbedField{
-				Name:  formattedKey,
-				Value: fmt.Sprintf("%v", value),
+				Name:   formattedKey,
+				Value:  fmt.Sprintf("%v", value),
+				Inline: getTagValue(i, key, "inline") == "",
 			}
 			fields = append(fields, &newField)
 		}
@@ -75,28 +77,96 @@ func structToPrettyDiscordFields(i any) []*discordgo.MessageEmbedField {
 	return fields
 }
 
-// sendMessage sends a MessageEmbed or a regular message. The content of the regular
-// message is the description of the passed MessageEmbed
-func (b ArchiverBot) sendMessage(s *discordgo.Session, useEmbed bool, replyTo bool,
-	m *discordgo.Message, e *discordgo.MessageEmbed) {
+// retryOptions returns a []discordgo.SelectMenuOption for retry attempts
+func retryOptions() (options []discordgo.SelectMenuOption) {
+	for i := globals.MinAllowedRetryAttempts; i <= globals.MaxAllowedRetryAttempts; i++ {
+		options = append(options, discordgo.SelectMenuOption{
+			Label: fmt.Sprint(i),
+			Value: fmt.Sprint(i),
+		})
+	}
+	return options
+}
 
-	var err error
-	switch useEmbed {
-	case true:
-		_, err = s.ChannelMessageSendEmbed(m.ChannelID, e)
+// settingsFailureIntegrationResponse returns a *discordgo.InteractionResponseData
+// stating that a failure to update settings has occured.
+func (bot *ArchiverBot) settingsFailureIntegrationResponse(sc ServerConfig) *discordgo.InteractionResponseData {
+	return &discordgo.InteractionResponseData{
+		Flags: uint64(discordgo.MessageFlagsEphemeral),
+		Embeds: []*discordgo.MessageEmbed{
+			{
+				Title: "Unable to update setting",
+				Color: globals.FrenchGray,
+			},
+		},
+	}
+}
+
+// settingsFailureIntegrationResponse returns a *discordgo.InteractionResponseData
+// stating that a failure to update settings has occured.
+func (bot *ArchiverBot) settingsDMFailureIntegrationResponse() *discordgo.InteractionResponseData {
+	return &discordgo.InteractionResponseData{
+		Flags: uint64(discordgo.MessageFlagsEphemeral),
+		Embeds: []*discordgo.MessageEmbed{
+			{
+				Title: "The bot does not have any per-user settings",
+				Color: globals.FrenchGray,
+			},
+		},
+	}
+}
+
+// deleteAllCommands is used but commented out in bot.go
+func (bot *ArchiverBot) deleteAllCommands() {
+	globalCommands, err := bot.DG.ApplicationCommands(bot.DG.State.User.ID, "")
+	if err != nil {
+		log.Fatalf("could not fetch registered global commands: %v", err)
+	}
+	for _, command := range globalCommands {
+		err = bot.DG.ApplicationCommandDelete(bot.DG.State.User.ID, "", command.ID)
 		if err != nil {
-			log.Warn(err)
-		}
-	case false:
-		if !replyTo {
-			_, err = s.ChannelMessageSend(m.ChannelID, e.Description)
-		} else {
-			_, err = s.ChannelMessageSendReply(m.ChannelID, e.Description, m.Reference())
-		}
-		if err != nil {
-			log.Warn(err)
+			log.Panicf("cannot delete '%v' command: %v", command.Name, err)
 		}
 	}
+}
+
+// sendArchiveResponse sends the message with a result from archive.org
+func (bot *ArchiverBot) sendArchiveResponse(message *discordgo.Message, reply *discordgo.MessageSend) error {
+	username := ""
+	user, err := bot.DG.User(message.Member.User.ID)
+	if err != nil {
+		log.Errorf("unable to look up user with ID %v, err: %v", message.Member.User.ID, err)
+		username = "unknown"
+	} else {
+		username = user.Username
+	}
+
+	if message.GuildID != "" {
+		// Do a lookup for the full guild object
+		guild, gErr := bot.DG.Guild(message.GuildID)
+		if gErr != nil {
+			return gErr
+		}
+		bot.createMessageEvent(MessageEvent{
+			AuthorId:       message.Member.User.ID,
+			AuthorUsername: message.Member.User.Username,
+			MessageId:      message.ID,
+			ChannelId:      message.ChannelID,
+			ServerID:       message.GuildID,
+		})
+		log.Debug("sending archive message response in ",
+			guild.Name, "(", guild.ID, "), calling user: ",
+			username, "(", message.Member.User.ID, ")")
+	} else {
+		log.Debug("declining archive message response in ",
+			"calling user: ", username, "(", message.Member.User.ID, ")")
+	}
+
+	_, err = bot.DG.ChannelMessageSendComplex(message.ChannelID, reply)
+	if err != nil {
+		log.Errorf("problem sending message: %v", err)
+	}
+	return nil
 }
 
 // getDomainName receives a URL and returns the FQDN

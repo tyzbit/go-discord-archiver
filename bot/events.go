@@ -3,7 +3,6 @@ package bot
 import (
 	"time"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
 )
 
@@ -15,9 +14,21 @@ type MessageEvent struct {
 	AuthorId           string
 	AuthorUsername     string
 	MessageId          string
-	Command            string
 	ChannelId          string
 	ServerID           string
+	ServerName         string
+	ArchiveEventEvents []ArchiveEventEvent `gorm:"foreignKey:UUID"`
+}
+
+type InteractionEvent struct {
+	CreatedAt          time.Time
+	UUID               string `gorm:"primaryKey"`
+	UserID             string
+	Username           string
+	InteractionId      string
+	ChannelId          string
+	ServerID           string
+	ServerName         string
 	ArchiveEventEvents []ArchiveEventEvent `gorm:"foreignKey:UUID"`
 }
 
@@ -30,6 +41,7 @@ type ArchiveEventEvent struct {
 	ChannelId      string
 	MessageId      string
 	ServerID       string
+	ServerName     string
 	ArchiveEvents  []ArchiveEvent `gorm:"foreignKey:ArchiveEventEventUUID"`
 }
 
@@ -48,15 +60,13 @@ type ArchiveEvent struct {
 }
 
 // createMessageEvent logs a given message event into the database.
-func (bot *ArchiverBot) createMessageEvent(c string, m *discordgo.Message) {
-	uuid := uuid.New().String()
-	bot.DB.Create(&MessageEvent{
-		UUID:           uuid,
-		AuthorId:       m.Author.ID,
-		AuthorUsername: m.Author.Username,
-		MessageId:      m.ID,
-		Command:        c,
-		ChannelId:      m.ChannelID,
-		ServerID:       m.GuildID,
-	})
+func (bot *ArchiverBot) createMessageEvent(m MessageEvent) {
+	m.UUID = uuid.New().String()
+	bot.DB.Create(&m)
+}
+
+// createInteractionEvent logs a given message event into the database.
+func (bot *ArchiverBot) createInteractionEvent(i InteractionEvent) {
+	i.UUID = uuid.New().String()
+	bot.DB.Create(&i)
 }

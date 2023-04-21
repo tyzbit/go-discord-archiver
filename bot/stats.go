@@ -5,11 +5,12 @@ import (
 )
 
 type botStats struct {
-	MessagesActedOn   int64  `pretty:"Messages Acted On"`
+	ArchiveRequests   int64  `pretty:"Times the bot has been called"`
 	MessagesSent      int64  `pretty:"Messages Sent"`
 	CallsToArchiveOrg int64  `pretty:"Calls to Archive.org"`
 	URLsArchived      int64  `pretty:"URLs Archived"`
-	TopDomains        string `pretty:"Top 5 Domains"`
+	Interactions      int64  `pretty:"Interactions with the bot"`
+	TopDomains        string `pretty:"Top 5 Domains" inline:"false"`
 	ServersWatched    int64  `pretty:"Servers Watched"`
 }
 
@@ -22,13 +23,15 @@ type domainStats struct {
 // The output here is not appropriate to send to individual servers, except
 // for ServersWatched.
 func (bot *ArchiverBot) getGlobalStats() botStats {
-	var MessagesActedOn, MessagesSent, CallsToArchiveOrg, ServersWatched int64
+	var ArchiveRequests, MessagesSent, CallsToArchiveOrg, Interactions, ServersWatched int64
 	serverId := bot.DG.State.User.ID
+	botId := bot.DG.State.User.ID
 	archiveRows := []ArchiveEventEvent{}
 	var topDomains []domainStats
 
-	bot.DB.Model(&MessageEvent{}).Count(&MessagesActedOn)
+	bot.DB.Model(&MessageEvent{}).Not(&MessageEvent{AuthorId: botId}).Count(&ArchiveRequests)
 	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{AuthorId: serverId}).Count(&MessagesSent)
+	bot.DB.Model(&InteractionEvent{}).Where(&InteractionEvent{}).Count(&Interactions)
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{Cached: false}).Count(&CallsToArchiveOrg)
 	bot.DB.Model(&ArchiveEvent{}).Scan(&archiveRows)
 	bot.DB.Model(&ArchiveEvent{}).Select("request_domain_name, count(request_domain_name) as count").
@@ -46,10 +49,11 @@ func (bot *ArchiverBot) getGlobalStats() botStats {
 	}
 
 	return botStats{
-		MessagesActedOn:   MessagesActedOn,
+		ArchiveRequests:   ArchiveRequests,
 		MessagesSent:      MessagesSent,
 		CallsToArchiveOrg: CallsToArchiveOrg,
 		URLsArchived:      int64(len(archiveRows)),
+		Interactions:      Interactions,
 		TopDomains:        topDomainsFormatted,
 		ServersWatched:    ServersWatched,
 	}
@@ -58,13 +62,14 @@ func (bot *ArchiverBot) getGlobalStats() botStats {
 // getServerStats gets the stats for a particular server with ID serverId.
 // If you want global stats, use getGlobalStats()
 func (bot *ArchiverBot) getServerStats(serverId string) botStats {
-	var MessagesActedOn, MessagesSent, CallsToArchiveOrg, ServersWatched int64
+	var ArchiveRequests, MessagesSent, CallsToArchiveOrg, Interactions, ServersWatched int64
 	botId := bot.DG.State.User.ID
 	archiveRows := []ArchiveEventEvent{}
 	var topDomains []domainStats
 
-	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{ServerID: serverId}).Count(&MessagesActedOn)
-	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{AuthorId: botId, ServerID: serverId}).Count(&MessagesSent)
+	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{ServerID: serverId}).Not(&MessageEvent{AuthorId: botId}).Count(&ArchiveRequests)
+	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{ServerID: serverId, AuthorId: botId}).Count(&MessagesSent)
+	bot.DB.Model(&InteractionEvent{}).Where(&InteractionEvent{ServerID: serverId}).Count(&Interactions)
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{ServerID: serverId, Cached: false}).Count(&CallsToArchiveOrg)
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{ServerID: serverId}).Scan(&archiveRows)
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{ServerID: serverId}).
@@ -83,10 +88,11 @@ func (bot *ArchiverBot) getServerStats(serverId string) botStats {
 	}
 
 	return botStats{
-		MessagesActedOn:   MessagesActedOn,
+		ArchiveRequests:   ArchiveRequests,
 		MessagesSent:      MessagesSent,
 		CallsToArchiveOrg: CallsToArchiveOrg,
 		URLsArchived:      int64(len(archiveRows)),
+		Interactions:      Interactions,
 		TopDomains:        topDomainsFormatted,
 		ServersWatched:    ServersWatched,
 	}

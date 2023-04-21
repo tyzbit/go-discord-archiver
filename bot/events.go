@@ -52,6 +52,7 @@ type ArchiveEvent struct {
 	UUID                  string `gorm:"primaryKey"`
 	ArchiveEventEventUUID string
 	ServerID              string
+	ServerName            string
 	RequestURL            string
 	RequestDomainName     string
 	ResponseURL           string

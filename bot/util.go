@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
@@ -175,5 +176,6 @@ func getDomainName(s string) (string, error) {
 		return "", fmt.Errorf("unable to determine domain name for url: %v", s)
 	}
 
-	return url.Hostname(), nil
+	hostname := strings.TrimPrefix(url.Hostname(), "www.")
+	return hostname, nil
 }

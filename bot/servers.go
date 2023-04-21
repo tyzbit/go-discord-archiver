@@ -22,6 +22,7 @@ type ServerConfig struct {
 	AlwaysArchiveFirst bool   `pretty:"Archive the page first (slower)"`
 	ShowDetails        bool   `pretty:"Show extra details"`
 	RetryAttempts      uint   `pretty:"Number of attempts the bot should make to archive a URL"`
+	UpdatedAt          time.Time
 }
 
 var (
@@ -40,23 +41,24 @@ var (
 // registerOrUpdateGuild checks if a guild is already registered in the database. If not,
 // it creates it with sensibile defaults.
 func (bot *ArchiverBot) registerOrUpdateGuild(g *discordgo.Guild) error {
-	var registration ServerRegistration
-	bot.DB.Find(&registration, g.ID)
-
 	// Do a lookup for the full guild object
 	guild, err := bot.DG.Guild(g.ID)
 	if err != nil {
 		return fmt.Errorf("unable to look up guild by id: %v", g.ID)
 	}
 
+	var registration ServerRegistration
+	bot.DB.Find(&registration, g.ID)
 	// The server registration does not exist, so we will create with defaults
 	if (registration == ServerRegistration{}) {
 		log.Info("creating registration for new server: ", guild.Name, "(", g.ID, ")")
+		sc := defaultServerConfig
+		sc.Name = guild.Name
 		tx := bot.DB.Create(&ServerRegistration{
 			DiscordId: g.ID,
 			Name:      guild.Name,
 			UpdatedAt: time.Now(),
-			Config:    defaultServerConfig,
+			Config:    sc,
 		})
 
 		// We only expect one server to be updated at a time. Otherwise, return an error.

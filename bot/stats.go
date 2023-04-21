@@ -67,7 +67,8 @@ func (bot *ArchiverBot) getServerStats(serverId string) botStats {
 	archiveRows := []ArchiveEventEvent{}
 	var topDomains []domainStats
 
-	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{ServerID: serverId}).Not(&MessageEvent{AuthorId: botId}).Count(&ArchiveRequests)
+	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{ServerID: serverId}).
+		Not(&MessageEvent{AuthorId: botId}).Count(&ArchiveRequests)
 	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{ServerID: serverId, AuthorId: botId}).Count(&MessagesSent)
 	bot.DB.Model(&InteractionEvent{}).Where(&InteractionEvent{ServerID: serverId}).Count(&Interactions)
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{ServerID: serverId, Cached: false}).Count(&CallsToArchiveOrg)

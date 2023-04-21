@@ -41,7 +41,9 @@ func (bot *ArchiverBot) typeInChannel(channel chan bool, channelID string) {
 // calls go-archiver with a []string of URLs parsed from the message.
 // It then sends an embed with the resulting archived URLs.
 // TODO: break out into more functions?
-func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, newSnapshot bool) (replies []*discordgo.MessageSend, errs []error) {
+func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, newSnapshot bool) (
+	replies []*discordgo.MessageSend, errs []error) {
+
 	typingStop := make(chan bool, 1)
 	go bot.typeInChannel(typingStop, r.ChannelID)
 
@@ -167,7 +169,8 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 			log.Debug("need to call archive.org api for ", archive.RequestURL)
 
 			// This will always try to archive the page if not found.
-			url, err := goarchive.GetLatestURL(archive.RequestURL, sc.RetryAttempts, sc.AlwaysArchiveFirst || newSnapshot, bot.Config.Cookie)
+			url, err := goarchive.GetLatestURL(archive.RequestURL, sc.RetryAttempts,
+				sc.AlwaysArchiveFirst || newSnapshot, bot.Config.Cookie)
 			if err != nil {
 				log.Errorf("error archiving url: %v", err)
 				url = fmt.Sprint("%w", errors.Unwrap(err))
@@ -251,18 +254,21 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 			if sc.ShowDetails {
 				embeds[0].Fields = []*discordgo.MessageEmbedField{
 					{
-						Name:   "Oldest Archived Copy",
-						Value:  fmt.Sprintf("[%s](%s/%s/%s)", oldest.Format(time.RFC1123), archiveRoot, sparkline.FirstTs, originalUrl),
+						Name: "Oldest Archived Copy",
+						Value: fmt.Sprintf("[%s](%s/%s/%s)",
+							oldest.Format(time.RFC1123), archiveRoot, sparkline.FirstTs, originalUrl),
 						Inline: true,
 					},
 					{
-						Name:   "Newest Archived Copy",
-						Value:  fmt.Sprintf("[%s](%s/%s/%s)", newest.Format(time.RFC1123), archiveRoot, sparkline.LastTs, originalUrl),
+						Name: "Newest Archived Copy",
+						Value: fmt.Sprintf("[%s](%s/%s/%s)",
+							newest.Format(time.RFC1123), archiveRoot, sparkline.LastTs, originalUrl),
 						Inline: true,
 					},
 					{
-						Name:  "Total Number of Snapshots",
-						Value: fmt.Sprintf("[%s](%s/%s0000000000*/%s)", fmt.Sprint(snapshotCount), archiveRoot, fmt.Sprint(time.Now().Year()), originalUrl),
+						Name: "Total Number of Snapshots",
+						Value: fmt.Sprintf("[%s](%s/%s0000000000*/%s)",
+							fmt.Sprint(snapshotCount), archiveRoot, fmt.Sprint(time.Now().Year()), originalUrl),
 					},
 				}
 			}

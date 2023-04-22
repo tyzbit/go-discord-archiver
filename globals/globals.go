@@ -8,6 +8,7 @@ const (
 	// Commands
 	Stats    = "stats"
 	Settings = "settings"
+	Help     = "help"
 	// Bot settings
 	BotEnabled         = "enabled"
 	RetryAttempts      = "retries"
@@ -17,6 +18,22 @@ const (
 	FrenchGray = 13424349
 	// Archive.org URL timestamp layout
 	ArchiveOrgTimestampLayout = "20060102150405"
+
+	// Help text
+	BotHelpText = `**Usage**
+	React to a message that has links with 🏛 (The "classical building" emoji) and the bot will respond in the channel with an archive.org link for the link(s). It saves the page to archive.org if needed.
+
+**This is a pretty good way to get around paywalls to read articles for free.**
+
+Configure the bot with slash commands:
+` + "`/settings`" + `
+
+Get stats for the bot:
+` + "`/stats`" + `
+
+Get this help message:
+` + "`/help`"
+	BotHelpFooterText = "It can take up to a few minutes for archive.org to save a page, so if you don't get a link immediately, please be patient."
 )
 
 var (
@@ -37,12 +54,16 @@ var (
 	SettingFailedResponseMessage = "Error changing setting"
 	Commands                     = []*discordgo.ApplicationCommand{
 		{
+			Name:        Help,
+			Description: "How to use this bot",
+		},
+		{
 			Name:        Stats,
 			Description: "Show bot stats",
 		},
 		{
 			Name:        Settings,
-			Description: "Change bot settings",
+			Description: "Change settings",
 		},
 	}
 	RegisteredCommands = make([]*discordgo.ApplicationCommand, len(Commands))

@@ -38,12 +38,32 @@ func (bot *ArchiverBot) BotReady(s *discordgo.Session, r *discordgo.Ready) {
 	}
 
 	// Use this to clean up commands if IDs have changed.
+	// TODO remove later if unnecessary
 	// log.Debug("removing all commands")
 	// bot.deleteAllCommands()
 	log.Debug("registering slash commands")
 	var err error
-	globals.RegisteredCommands, err = bot.DG.ApplicationCommandBulkOverwrite(bot.DG.State.User.ID, "", globals.Commands)
-	// cmd, err := bot.DG.ApplicationCommandCreate(bot.DG.State.User.ID, "", v)
+	// globals.RegisteredCommands, err = bot.DG.ApplicationCommandBulkOverwrite(bot.DG.State.User.ID, "", globals.Commands)
+	existingCommands, err := bot.DG.ApplicationCommands(bot.DG.State.User.ID, "")
+	for _, cmd := range globals.Commands {
+		for _, existingCmd := range existingCommands {
+			if existingCmd.Name == cmd.Name {
+				editedCmd, err := bot.DG.ApplicationCommandEdit(bot.DG.State.User.ID, "", existingCmd.ID, cmd)
+				if err != nil {
+					log.Errorf("cannot update command %s: %v", cmd.Name, err)
+				}
+				globals.RegisteredCommands = append(globals.RegisteredCommands, editedCmd)
+			} else {
+				createdCmd, err := bot.DG.ApplicationCommandCreate(bot.DG.State.User.ID, "", cmd)
+				if err != nil {
+					log.Errorf("cannot update command %s: %v", cmd.Name, err)
+				}
+				globals.RegisteredCommands = append(globals.RegisteredCommands, createdCmd)
+
+			}
+		}
+	}
+
 	if err != nil {
 		log.Errorf("cannot update commands: %v", err)
 	}
@@ -182,6 +202,28 @@ func (bot *ArchiverBot) SettingsIntegrationResponse(sc ServerConfig) *discordgo.
 // InteractionInit configures all interactive commands
 func (bot *ArchiverBot) InteractionInit(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	commandsHandlers := map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+		globals.Help: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			err := bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Flags: uint64(discordgo.MessageFlagsEphemeral),
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Title:       "🏛️ Archive.org Bot Help",
+							Description: globals.BotHelpText,
+							Footer: &discordgo.MessageEmbedFooter{
+								Text: globals.BotHelpFooterText,
+							},
+							Color: globals.FrenchGray,
+						},
+					},
+				},
+			})
+
+			if err != nil {
+				log.Errorf("error responding to help command "+globals.Help+", err: %v", err)
+			}
+		},
 		// Stats does not create an InteractionEvent
 		globals.Stats: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			log.Debug(i.GuildID)

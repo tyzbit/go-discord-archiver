@@ -4,7 +4,7 @@ import "github.com/bwmarrin/discordgo"
 
 const (
 	// Interactive command aliases
-	TakeCurrentSnapshot = "retry"
+	Retry = "retry"
 	// Commands
 	Stats    = "stats"
 	Settings = "settings"

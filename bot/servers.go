@@ -44,7 +44,7 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild) error {
 	// Do a lookup for the full guild object
 	guild, err := bot.DG.Guild(g.ID)
 	if err != nil {
-		return fmt.Errorf("unable to look up guild by id: %v", g.ID)
+		return fmt.Errorf("unable to look up server by id: %v", g.ID)
 	}
 
 	var registration ServerRegistration
@@ -93,7 +93,7 @@ func (bot *ArchiverBot) updateServerSetting(guildID string, setting string,
 	value interface{}) (sc ServerConfig, success bool) {
 	guild, err := bot.DG.Guild(guildID)
 	if err != nil {
-		log.Errorf("unable to look up guild by id: %v", guildID)
+		log.Errorf("unable to look up server by id: %v", guildID)
 		return sc, false
 	}
 

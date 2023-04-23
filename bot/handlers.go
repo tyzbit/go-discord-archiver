@@ -33,7 +33,7 @@ func (bot *ArchiverBot) BotReadyHandler(s *discordgo.Session, r *discordgo.Ready
 	for _, g := range r.Guilds {
 		err := bot.registerOrUpdateServer(g)
 		if err != nil {
-			log.Errorf("unable to register or update guild: %v", err)
+			log.Errorf("unable to register or update server: %v", err)
 		}
 	}
 
@@ -87,7 +87,7 @@ func (bot *ArchiverBot) GuildCreateHandler(s *discordgo.Session, gc *discordgo.G
 
 	err := bot.registerOrUpdateServer(gc.Guild)
 	if err != nil {
-		log.Errorf("unable to register or update guild: %v", err)
+		log.Errorf("unable to register or update server: %v", err)
 	}
 }
 
@@ -201,7 +201,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 				stats = bot.getServerStats(i.GuildID)
 				guild, err := bot.DG.Guild(i.GuildID)
 				if err != nil {
-					log.Errorf("unable to look up guild by id: %v", i.GuildID+", "+fmt.Sprintf("%v", err))
+					log.Errorf("unable to look up server by id: %v", i.GuildID+", "+fmt.Sprintf("%v", err))
 					return
 				}
 				logMessage = "sending stats response to " + i.Member.User.Username + "(" + i.Member.User.ID + ") in " +
@@ -313,7 +313,8 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 	}
 
 	buttonHandlers := map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-		globals.TakeCurrentSnapshot: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		globals.Retry: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			// Remove retry button
 			i.Message.Components = []discordgo.MessageComponent{}
 
 			guild, err := bot.DG.Guild(i.Interaction.GuildID)

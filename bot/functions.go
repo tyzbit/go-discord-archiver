@@ -53,7 +53,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 	guild, gErr := bot.DG.Guild(r.GuildID)
 	if gErr != nil {
 		typingStop <- true
-		return replies, []error{fmt.Errorf("unable to look up guild by id: %v", r.GuildID)}
+		return replies, []error{fmt.Errorf("unable to look up server by id: %v", r.GuildID)}
 	}
 
 	message, err := bot.DG.ChannelMessage(r.ChannelID, r.MessageID)
@@ -229,7 +229,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 					discordgo.Button{
 						Label:    "Request new snapshot",
 						Style:    discordgo.PrimaryButton,
-						CustomID: globals.TakeCurrentSnapshot},
+						CustomID: globals.Retry},
 				},
 			},
 		}

@@ -136,10 +136,10 @@ func main() {
 
 	// These handlers get called whenever there's a corresponding
 	// Discord event.
-	dg.AddHandler(archiveBot.BotReady)
-	dg.AddHandler(archiveBot.GuildCreate)
-	dg.AddHandler(archiveBot.MessageReactionAdd)
-	dg.AddHandler(archiveBot.InteractionInit)
+	dg.AddHandler(archiveBot.BotReadyHandler)
+	dg.AddHandler(archiveBot.GuildCreateHandler)
+	dg.AddHandler(archiveBot.MessageReactionAddHandler)
+	dg.AddHandler(archiveBot.InteractionHandler)
 
 	// We have to be explicit about what we want to receive. In addition,
 	// some intents require additional permissions, which must be granted

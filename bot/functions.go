@@ -21,22 +21,6 @@ const (
 	originalURLSearch string = ".*(http.*)"
 )
 
-// typeInChannel sets the typing indicator for a channel. The indicator is cleared
-// when a message is sent.
-func (bot *ArchiverBot) typeInChannel(channel chan bool, channelID string) {
-	for {
-		select {
-		case <-channel:
-			return
-		default:
-			if err := bot.DG.ChannelTyping(channelID); err != nil {
-				log.Error("unable to set typing indicator: ", err)
-			}
-			time.Sleep(time.Second * 5)
-		}
-	}
-}
-
 // handleArchiveRequest takes a Discord session and a message string and
 // calls go-archiver with a []string of URLs parsed from the message.
 // It then sends an embed with the resulting archived URLs.

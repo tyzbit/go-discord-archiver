@@ -28,10 +28,10 @@ type ArchiverBotConfig struct {
 	Cookie     string   `env:"COOKIE"`
 }
 
-// BotReady is called when the bot is considered ready to use the Discord session.
-func (bot *ArchiverBot) BotReady(s *discordgo.Session, r *discordgo.Ready) {
+// BotReadyHandler is called when the bot is considered ready to use the Discord session.
+func (bot *ArchiverBot) BotReadyHandler(s *discordgo.Session, r *discordgo.Ready) {
 	for _, g := range r.Guilds {
-		err := bot.registerOrUpdateGuild(g)
+		err := bot.registerOrUpdateServer(g)
 		if err != nil {
 			log.Errorf("unable to register or update guild: %v", err)
 		}
@@ -78,14 +78,14 @@ func (bot *ArchiverBot) BotReady(s *discordgo.Session, r *discordgo.Ready) {
 	}
 }
 
-// GuildCreate is called whenever the bot joins a new guild. It is also lazily called upon initial
+// GuildCreateHandler is called whenever the bot joins a new guild. It is also lazily called upon initial
 // connection to Discord.
-func (bot *ArchiverBot) GuildCreate(s *discordgo.Session, gc *discordgo.GuildCreate) {
+func (bot *ArchiverBot) GuildCreateHandler(s *discordgo.Session, gc *discordgo.GuildCreate) {
 	if gc.Guild.Unavailable {
 		return
 	}
 
-	err := bot.registerOrUpdateGuild(gc.Guild)
+	err := bot.registerOrUpdateServer(gc.Guild)
 	if err != nil {
 		log.Errorf("unable to register or update guild: %v", err)
 	}
@@ -93,7 +93,7 @@ func (bot *ArchiverBot) GuildCreate(s *discordgo.Session, gc *discordgo.GuildCre
 
 // This function will be called every time a new react is created on any message
 // that the authenticated bot has access to.
-func (bot *ArchiverBot) MessageReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
+func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
 	if r.MessageReaction.Emoji.Name == "🏛️" {
 		var m *discordgo.Message
 		// Guild ID is blank if the user is DMing us
@@ -165,42 +165,8 @@ func (bot *ArchiverBot) MessageReactionAdd(s *discordgo.Session, r *discordgo.Me
 	}
 }
 
-// SettingsIntegrationResponse returns server settings in a *discordgo.InteractionResponseData
-func (bot *ArchiverBot) SettingsIntegrationResponse(sc ServerConfig) *discordgo.InteractionResponseData {
-	return &discordgo.InteractionResponseData{
-		Flags: uint64(discordgo.MessageFlagsEphemeral),
-		Components: []discordgo.MessageComponent{
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
-					discordgo.Button{
-						Label:    getTagValue(sc, "ArchiveEnabled", "pretty"),
-						Style:    globals.ButtonStyle[sc.ArchiveEnabled],
-						CustomID: globals.BotEnabled},
-					discordgo.Button{
-						Label:    getTagValue(sc, "ShowDetails", "pretty"),
-						Style:    globals.ButtonStyle[sc.ShowDetails],
-						CustomID: globals.Details},
-					discordgo.Button{
-						Label:    getTagValue(sc, "AlwaysArchiveFirst", "pretty"),
-						Style:    globals.ButtonStyle[sc.AlwaysArchiveFirst],
-						CustomID: globals.AlwaysArchiveFirst},
-				},
-			},
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
-					discordgo.SelectMenu{
-						Placeholder: "Retries: " + fmt.Sprint(sc.RetryAttempts),
-						CustomID:    globals.RetryAttempts,
-						Options:     retryOptions(),
-					},
-				},
-			},
-		},
-	}
-}
-
 // InteractionInit configures all interactive commands
-func (bot *ArchiverBot) InteractionInit(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	commandsHandlers := map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		globals.Help: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			err := bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -458,7 +424,7 @@ func (bot *ArchiverBot) InteractionInit(s *discordgo.Session, i *discordgo.Inter
 			} else if !ok {
 				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.settingsFailureIntegrationResponse(sc),
+					Data: bot.settingsFailureIntegrationResponse(),
 				})
 			} else {
 				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -493,7 +459,7 @@ func (bot *ArchiverBot) InteractionInit(s *discordgo.Session, i *discordgo.Inter
 			if !ok {
 				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.settingsFailureIntegrationResponse(sc),
+					Data: bot.settingsFailureIntegrationResponse(),
 				})
 			} else {
 				nc := bot.getServerConfig(i.GuildID)
@@ -529,7 +495,7 @@ func (bot *ArchiverBot) InteractionInit(s *discordgo.Session, i *discordgo.Inter
 			if !ok {
 				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.settingsFailureIntegrationResponse(sc),
+					Data: bot.settingsFailureIntegrationResponse(),
 				})
 			} else {
 				nc := bot.getServerConfig(i.GuildID)
@@ -564,7 +530,7 @@ func (bot *ArchiverBot) InteractionInit(s *discordgo.Session, i *discordgo.Inter
 			if !ok {
 				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.settingsFailureIntegrationResponse(sc),
+					Data: bot.settingsFailureIntegrationResponse(),
 				})
 			} else {
 				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

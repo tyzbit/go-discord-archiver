@@ -38,9 +38,9 @@ var (
 	archiverRepoUrl string = "https://github.com/tyzbit/go-discord-archiver"
 )
 
-// registerOrUpdateGuild checks if a guild is already registered in the database. If not,
+// registerOrUpdateServer checks if a guild is already registered in the database. If not,
 // it creates it with sensibile defaults.
-func (bot *ArchiverBot) registerOrUpdateGuild(g *discordgo.Guild) error {
+func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild) error {
 	// Do a lookup for the full guild object
 	guild, err := bot.DG.Guild(g.ID)
 	if err != nil {

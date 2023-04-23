@@ -510,9 +510,79 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 				log.Errorf("error responding to settings interaction, err: %v", interactionErr)
 			}
 		},
+		globals.RemoveRetry: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			sc := bot.getServerConfig(i.GuildID)
+			inverse := !sc.RemoveRetries
+			var interactionErr error
+			sc, ok := bot.updateServerSetting(i.GuildID, "remove_retry", inverse)
+
+			guild, err := bot.DG.Guild(i.Interaction.GuildID)
+			if err != nil {
+				guild.Name = "None"
+			}
+			bot.createInteractionEvent(InteractionEvent{
+				UserID:        i.Member.User.ID,
+				Username:      i.Member.User.Username,
+				InteractionId: i.Message.ID,
+				ChannelId:     i.Message.ChannelID,
+				ServerID:      i.Interaction.GuildID,
+				ServerName:    guild.Name,
+			})
+
+			if !ok {
+				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseUpdateMessage,
+					Data: bot.settingsFailureIntegrationResponse(),
+				})
+			} else {
+				nc := bot.getServerConfig(i.GuildID)
+				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseUpdateMessage,
+					Data: bot.SettingsIntegrationResponse(nc),
+				})
+			}
+
+			if interactionErr != nil {
+				log.Errorf("error responding to settings interaction, err: %v", interactionErr)
+			}
+		},
 		globals.RetryAttempts: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			mcd := i.MessageComponentData()
 			sc, ok := bot.updateServerSetting(i.GuildID, "retry_attempts", mcd.Values[0])
+			var interactionErr error
+
+			guild, err := bot.DG.Guild(i.Interaction.GuildID)
+			if err != nil {
+				guild.Name = "None"
+			}
+			bot.createInteractionEvent(InteractionEvent{
+				UserID:        i.Member.User.ID,
+				Username:      i.Member.User.Username,
+				InteractionId: i.Message.ID,
+				ChannelId:     i.Message.ChannelID,
+				ServerID:      i.Interaction.GuildID,
+				ServerName:    guild.Name,
+			})
+
+			if !ok {
+				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseUpdateMessage,
+					Data: bot.settingsFailureIntegrationResponse(),
+				})
+			} else {
+				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseUpdateMessage,
+					Data: bot.SettingsIntegrationResponse(sc),
+				})
+			}
+
+			if interactionErr != nil {
+				log.Errorf("error responding to settings interaction, err: %v", interactionErr)
+			}
+		},
+		globals.RemoveRetryAfter: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			mcd := i.MessageComponentData()
+			sc, ok := bot.updateServerSetting(i.GuildID, "remove_retry_delay", mcd.Values[0])
 			var interactionErr error
 
 			guild, err := bot.DG.Guild(i.Interaction.GuildID)

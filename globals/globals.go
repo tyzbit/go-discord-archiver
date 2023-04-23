@@ -5,17 +5,25 @@ import "github.com/bwmarrin/discordgo"
 const (
 	// Interactive command aliases
 	Retry = "retry"
+
 	// Commands
 	Stats    = "stats"
 	Settings = "settings"
 	Help     = "help"
+
 	// Bot settings
+	// Booleans
 	BotEnabled         = "enabled"
-	RetryAttempts      = "retries"
 	AlwaysArchiveFirst = "alwayssnapshotfirst"
 	Details            = "showdetails"
+	RemoveRetry        = "removeretry"
+	// Integers
+	RetryAttempts    = "retries"
+	RemoveRetryAfter = "removeretryafter"
+
 	// Colors
 	FrenchGray = 13424349
+
 	// Archive.org URL timestamp layout
 	ArchiveOrgTimestampLayout = "20060102150405"
 
@@ -39,8 +47,11 @@ Get this help message:
 var (
 	MinAllowedRetryAttempts      = 0
 	MinAllowedRetryAttemptsFloat = float64(MinAllowedRetryAttempts)
+
 	MaxAllowedRetryAttempts      = 5
 	MaxAllowedRetryAttemptsFloat = float64(MaxAllowedRetryAttempts)
+
+	AllowedRetryAttemptRemovalDelayValues = []int{10, 30, 90, 120, 300}
 	// Verb takes a boolean and returns "enabled" or "disabled"
 	Verb = map[bool]string{
 		true:  "enabled",

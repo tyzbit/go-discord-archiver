@@ -79,11 +79,36 @@ func structToPrettyDiscordFields(i any) []*discordgo.MessageEmbedField {
 }
 
 // retryOptions returns a []discordgo.SelectMenuOption for retry attempts
-func retryOptions() (options []discordgo.SelectMenuOption) {
+func retryOptions(sc ServerConfig) (options []discordgo.SelectMenuOption) {
 	for i := globals.MinAllowedRetryAttempts; i <= globals.MaxAllowedRetryAttempts; i++ {
+
+		description := ""
+		if uint(i) == sc.RetryAttempts {
+			description = "Current value"
+		}
+
 		options = append(options, discordgo.SelectMenuOption{
-			Label: fmt.Sprint(i),
-			Value: fmt.Sprint(i),
+			Label:       fmt.Sprint(i),
+			Description: description,
+			Value:       fmt.Sprint(i),
+		})
+	}
+	return options
+}
+
+// retryRemoveOptions returns a []discordgo.SelectMenuOption for retry removal delays
+func retryRemoveOptions(sc ServerConfig) (options []discordgo.SelectMenuOption) {
+	for _, value := range globals.AllowedRetryAttemptRemovalDelayValues {
+
+		description := ""
+		if uint(value) == sc.RetryAttempts {
+			description = "Current value"
+		}
+
+		options = append(options, discordgo.SelectMenuOption{
+			Label:       fmt.Sprint(value),
+			Value:       fmt.Sprint(value),
+			Description: description,
 		})
 	}
 	return options
@@ -120,18 +145,35 @@ func (bot *ArchiverBot) SettingsIntegrationResponse(sc ServerConfig) *discordgo.
 						Label:    getTagValue(sc, "ShowDetails", "pretty"),
 						Style:    globals.ButtonStyle[sc.ShowDetails],
 						CustomID: globals.Details},
+				},
+			},
+			discordgo.ActionsRow{
+				Components: []discordgo.MessageComponent{
 					discordgo.Button{
 						Label:    getTagValue(sc, "AlwaysArchiveFirst", "pretty"),
 						Style:    globals.ButtonStyle[sc.AlwaysArchiveFirst],
 						CustomID: globals.AlwaysArchiveFirst},
+					discordgo.Button{
+						Label:    getTagValue(sc, "RemoveRetries", "pretty"),
+						Style:    globals.ButtonStyle[sc.AlwaysArchiveFirst],
+						CustomID: globals.RemoveRetry},
 				},
 			},
 			discordgo.ActionsRow{
 				Components: []discordgo.MessageComponent{
 					discordgo.SelectMenu{
-						Placeholder: "Retries: " + fmt.Sprint(sc.RetryAttempts),
+						Placeholder: getTagValue(sc, "RetryAttempts", "pretty"),
 						CustomID:    globals.RetryAttempts,
-						Options:     retryOptions(),
+						Options:     retryOptions(sc),
+					},
+				},
+			},
+			discordgo.ActionsRow{
+				Components: []discordgo.MessageComponent{
+					discordgo.SelectMenu{
+						Placeholder: getTagValue(sc, "RemoveRetriesDelay", "pretty"),
+						CustomID:    globals.RemoveRetryAfter,
+						Options:     retryRemoveOptions(sc),
 					},
 				},
 			},

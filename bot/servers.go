@@ -21,7 +21,9 @@ type ServerConfig struct {
 	ArchiveEnabled     bool   `pretty:"Bot enabled"`
 	AlwaysArchiveFirst bool   `pretty:"Archive the page first (slower)"`
 	ShowDetails        bool   `pretty:"Show extra details"`
-	RetryAttempts      uint   `pretty:"Number of attempts the bot should make to archive a URL"`
+	RemoveRetries      bool   `pretty:"Remove the retry button automatically"`
+	RetryAttempts      uint   `pretty:"Number of attempts to archive a URL"`
+	RemoveRetriesDelay uint   `pretty:"Seconds to wait to remove retry button"`
 	UpdatedAt          time.Time
 }
 
@@ -32,7 +34,9 @@ var (
 		ArchiveEnabled:     true,
 		AlwaysArchiveFirst: false,
 		ShowDetails:        true,
+		RemoveRetries:      true,
 		RetryAttempts:      1,
+		RemoveRetriesDelay: 30,
 	}
 
 	archiverRepoUrl string = "https://github.com/tyzbit/go-discord-archiver"

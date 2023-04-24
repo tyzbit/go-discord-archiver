@@ -582,7 +582,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 		},
 		globals.RemoveRetryAfter: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			mcd := i.MessageComponentData()
-			sc, ok := bot.updateServerSetting(i.GuildID, "remove_retry_delay", mcd.Values[0])
+			sc, ok := bot.updateServerSetting(i.GuildID, "remove_retries_delay", mcd.Values[0])
 			var interactionErr error
 
 			guild, err := bot.DG.Guild(i.Interaction.GuildID)

@@ -101,7 +101,7 @@ func retryRemoveOptions(sc ServerConfig) (options []discordgo.SelectMenuOption) 
 	for _, value := range globals.AllowedRetryAttemptRemovalDelayValues {
 
 		description := ""
-		if uint(value) == sc.RetryAttempts {
+		if uint(value) == sc.RemoveRetriesDelay {
 			description = "Current value"
 		}
 

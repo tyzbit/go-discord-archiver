@@ -7,9 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// How long the bot waits before removing the retry button
-const removeRetryButtonWait = 30 * time.Second
-
 // sendArchiveResponse sends the message with a result from archive.org
 func (bot *ArchiverBot) sendArchiveResponse(message *discordgo.Message, reply *discordgo.MessageSend) error {
 	username := ""
@@ -53,7 +50,14 @@ func (bot *ArchiverBot) sendArchiveResponse(message *discordgo.Message, reply *d
 }
 
 func (bot *ArchiverBot) removeRetryButtonAfterSleep(message *discordgo.Message) {
-	time.Sleep(removeRetryButtonWait)
+	guild, gErr := bot.DG.Guild(message.GuildID)
+	if gErr != nil {
+		log.Errorf("unable to look up server by id: %v", message.GuildID)
+
+	}
+
+	sc := bot.getServerConfig(guild.ID)
+	time.Sleep(time.Duration(sc.RemoveRetriesDelay))
 	me := discordgo.MessageEdit{
 		// Remove the components (button)
 		Components: []discordgo.MessageComponent{},
@@ -62,11 +66,8 @@ func (bot *ArchiverBot) removeRetryButtonAfterSleep(message *discordgo.Message) 
 		Channel:    message.ChannelID,
 	}
 
-	guild, gErr := bot.DG.Guild(message.GuildID)
-	if gErr != nil {
-		log.Errorf("unable to look up server by id: %v", message.GuildID)
-
-	}
+	log.Debugf("removing reply button (waited %vs) for message ID %s in channel %s, guild: %s(%s)",
+		sc.RemoveRetriesDelay, message.ID, message.ChannelID, guild.Name, guild.ID)
 	_, err := bot.DG.ChannelMessageEditComplex(&me)
 	if err != nil {
 		log.Errorf("unable to remove retry button on message id %v, server: %s(%s): %v, ",

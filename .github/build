@@ -10,4 +10,5 @@ shift 6
 OPTIONS=$*
 
 # shellcheck disable=2086
+go mod vendor
 go build -o "${BUILDFLAGS}" "${APPNAME}-${TAG}-${GOOS}-${GOARCH}${EXT}" ${OPTIONS}

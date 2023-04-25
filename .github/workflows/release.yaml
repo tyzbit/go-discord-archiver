@@ -35,14 +35,7 @@ jobs:
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
           goversion: 1.19.5
-          build_command: >-
-            ./.github/build
-            ${{ github.event.repository.name }}
-            ${{ github.ref_name }}
-            ${{ matrix.ldflags }}
-            ${{ matrix.goos }}
-            ${{ matrix.goarch }}
-            ${{ matrix.ext }}
+          ldflags: ${{ matrix.ldflags }}
           asset_name: >-
             ${{ github.event.repository.name }}-
             ${{ github.ref_name }}-

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-APPNAME="go-discord-archiver"
+APPNAME="$1"
 BUILDCONFIGS=(
   "darwin amd64"
   "darwin arm64"
@@ -9,6 +9,8 @@ BUILDCONFIGS=(
   "linux arm64"
   "windows amd64"
 )
+buildflags="$2"
+tag="$3"
 
 for bc in "${BUILDCONFIGS[@]}"; do
   os=${bc% *}
@@ -17,5 +19,5 @@ for bc in "${BUILDCONFIGS[@]}"; do
   if [[ "${os}" = "windows" ]]; then
     ext=".exe"
   fi
-  GOOS="${os}" GOARCH="${arch}" go build -o "${APPNAME}-${os}-${arch}${ext}"
+  GOOS="${os}" GOARCH="${arch}" go build -o "${buildflags}" "${APPNAME}-${tag}-${os}-${arch}${ext}"
 done

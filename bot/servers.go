@@ -119,8 +119,10 @@ func (bot *ArchiverBot) updateServerSetting(guildID string, setting string,
 // updateServersWatched updates the servers watched value
 // in both the local bot stats and in the database. It is allowed to fail.
 func (bot *ArchiverBot) updateServersWatched() error {
-	var serversWatched int64
-	bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{}).Count(&serversWatched)
+	var serversWatched, serversConfigured int64
+	serversWatched = int64(len(bot.DG.State.Ready.Guilds))
+	bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{}).Count(&serversConfigured)
+	log.Debugf("total number of servers configured: %v, connected servers: %v", serversConfigured, serversWatched)
 
 	updateStatusData := &discordgo.UpdateStatusData{Status: "online"}
 	updateStatusData.Activities = make([]*discordgo.Activity, 1)

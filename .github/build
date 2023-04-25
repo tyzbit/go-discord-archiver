@@ -1,11 +1,11 @@
 #!/bin/bash
 
-APPNAME=$1
-TAG=$2
-BUILDFLAGS=$3
-GOOS=$4
-GOARCH=$5
-EXT=$6
+APPNAME="$1"
+TAG="$2"
+BUILDFLAGS="$3"
+GOOS="$4"
+GOARCH="$5"
+EXT="$6"
 shift 6
 OPTIONS=$*
 

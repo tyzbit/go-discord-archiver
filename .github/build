@@ -1,23 +1,13 @@
 #!/bin/bash
 
 APPNAME="$1"
-BUILDCONFIGS=(
-  "darwin amd64"
-  "darwin arm64"
-  "linux amd64"
-  "linux arm"
-  "linux arm64"
-  "windows amd64"
-)
-buildflags="$2"
-tag="$3"
+TAG="$2"
+BUILDFLAGS="$3"
+GOOS="$4"
+GOARCH="$5"
+EXT=$6
+shift 6
+OPTIONS=$*
 
-for bc in "${BUILDCONFIGS[@]}"; do
-  os=${bc% *}
-  arch=${bc#* }
-  ext=""
-  if [[ "${os}" = "windows" ]]; then
-    ext=".exe"
-  fi
-  GOOS="${os}" GOARCH="${arch}" go build -o "${buildflags}" "${APPNAME}-${tag}-${os}-${arch}${ext}"
-done
+# shellcheck disable=2086
+go build -o "${BUILDFLAGS}" "${APPNAME}-${TAG}-${GOOS}-${GOARCH}${EXT}" ${OPTIONS}

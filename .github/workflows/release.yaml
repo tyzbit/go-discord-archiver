@@ -37,10 +37,5 @@ jobs:
           goversion: 1.19.5
           ldflags: ${{ matrix.ldflags }}
           compress_assets: OFF
-          asset_name: >-
-            ${{ github.event.repository.name }}-
-            ${{ github.ref_name }}-
-            ${{ matrix.goos }}-
-            ${{ matrix.goarch }}
-            ${{ matrix.ext }}
+          asset_name: ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
           extra_files: LICENSE README.md

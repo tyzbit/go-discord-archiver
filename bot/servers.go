@@ -42,7 +42,7 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild) error {
 
 	var registration ServerRegistration
 	bot.DB.Find(&registration, g.ID)
-	active := sql.NullBool{Bool: true}
+	active := sql.NullBool{Valid: true, Bool: true}
 	// The server registration does not exist, so we will create with defaults
 	if registration.Name == "default" {
 		log.Info("creating registration for new server: ", guild.Name, "(", g.ID, ")")

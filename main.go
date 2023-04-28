@@ -117,10 +117,9 @@ func main() {
 	// it for controlling the bot. db is the database object, dg is the
 	// discordgo object
 	archiveBot := bot.ArchiverBot{
-		DB:         db,
-		DG:         dg,
-		Config:     config,
-		StartingUp: true,
+		DB:     db,
+		DG:     dg,
+		Config: config,
 	}
 
 	// Set up DB if necessary

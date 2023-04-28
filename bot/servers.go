@@ -11,7 +11,7 @@ import (
 
 type ServerRegistration struct {
 	DiscordId string `gorm:"primaryKey"`
-	Name      string
+	Name      string `gorm:"default:default"`
 	UpdatedAt time.Time
 	Active    sql.NullBool `pretty:"Bot is active in the server" gorm:"default:true"`
 	Config    ServerConfig `gorm:"foreignKey:DiscordId"`
@@ -24,7 +24,7 @@ type ServerConfig struct {
 	AlwaysArchiveFirst sql.NullBool  `pretty:"Archive the page first (slower)" gorm:"default:false"`
 	ShowDetails        sql.NullBool  `pretty:"Show extra details" gorm:"default:true"`
 	RemoveRetry        sql.NullBool  `pretty:"Remove the retry button automatically" gorm:"default:true"`
-	RetryAttempts      sql.NullInt32 `pretty:"Number of attempts to archive a URL" gorm:"default:1"`
+	RetryAttempts      sql.NullInt32 `pretty:"Number of times to retry calling archive.org" gorm:"default:1"`
 	RemoveRetriesDelay sql.NullInt32 `pretty:"Seconds to wait to remove retry button" gorm:"default:30"`
 	UpdatedAt          time.Time
 }
@@ -44,7 +44,7 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild) error {
 	bot.DB.Find(&registration, g.ID)
 	active := sql.NullBool{Bool: true}
 	// The server registration does not exist, so we will create with defaults
-	if (registration == ServerRegistration{}) {
+	if registration.Name == "default" {
 		log.Info("creating registration for new server: ", guild.Name, "(", g.ID, ")")
 		tx := bot.DB.Create(&ServerRegistration{
 			DiscordId: g.ID,
@@ -65,46 +65,43 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild) error {
 
 	// Sort of a migration and also a catch-all for registrations that
 	// are not properly saved in the database
-	if !registration.Active.Valid {
+	if registration.Active != active {
 		bot.DB.Model(&ServerRegistration{}).
 			Where(&ServerRegistration{DiscordId: registration.DiscordId}).
 			Updates(&ServerRegistration{Active: active})
 	}
 
-	err = bot.updateServersWatched()
-	if err != nil {
-		return fmt.Errorf("unable to update servers watched: %v", err)
-	}
-
 	return nil
 }
 
-// updateServerRegistrations goes through every server registration and
+// updateInactiveRegistrations goes through every server registration and
 // updates the DB as to whether or not it's active
-func (bot *ArchiverBot) updateServerRegistrations(activeGuilds []*discordgo.Guild) {
+func (bot *ArchiverBot) updateInactiveRegistrations(activeGuilds []*discordgo.Guild) {
 	var sr []ServerRegistration
 	bot.DB.Find(&sr)
-	active := sql.NullBool{Bool: true}
-	inactive := sql.NullBool{Valid: true, Bool: false}
+	var status sql.NullBool
 
-	// Update all registrations for whether or not the server is active
+	// Check all registrations for whether or not the server is active
 	for _, reg := range sr {
 		// If there is no guild in r.Guilds, then we havea config
 		// for a server we're not in anymore
-		reg.Active = inactive
+		status = sql.NullBool{Valid: true, Bool: false}
 		for _, g := range activeGuilds {
 			if g.ID == reg.DiscordId {
-				reg.Active = active
+				status = sql.NullBool{Valid: true, Bool: true}
 			}
 		}
 
-		// Now the registration is accurate, update the DB
-		tx := bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{DiscordId: reg.DiscordId}).
-			Updates(reg)
+		// Now the registration is accurate, update the DB if needed
+		if reg.Active != status {
+			reg.Active = status
+			tx := bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{DiscordId: reg.DiscordId}).
+				Updates(reg)
 
-		if tx.RowsAffected != 1 {
-			log.Errorf("unexpected number of rows affected updating server registration, id: %s, rows updated: %v",
-				reg.DiscordId, tx.RowsAffected)
+			if tx.RowsAffected != 1 {
+				log.Errorf("unexpected number of rows affected updating server registration, id: %s, rows updated: %v",
+					reg.DiscordId, tx.RowsAffected)
+			}
 		}
 	}
 }
@@ -160,12 +157,10 @@ func (bot *ArchiverBot) updateServersWatched() error {
 		URL:  archiverRepoUrl,
 	}
 
-	if !bot.StartingUp {
-		log.Debug("updating discord bot status")
-		err := bot.DG.UpdateStatusComplex(*updateStatusData)
-		if err != nil {
-			return fmt.Errorf("unable to update discord bot status: %w", err)
-		}
+	log.Debug("updating discord bot status")
+	err := bot.DG.UpdateStatusComplex(*updateStatusData)
+	if err != nil {
+		return fmt.Errorf("unable to update discord bot status: %w", err)
 	}
 
 	return nil

@@ -2,7 +2,6 @@ package bot
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
@@ -13,10 +12,9 @@ import (
 // ArchiverBot is the main type passed around throughout the code
 // It has many functions for overall bot management
 type ArchiverBot struct {
-	DB         *gorm.DB
-	DG         *discordgo.Session
-	Config     ArchiverBotConfig
-	StartingUp bool
+	DB     *gorm.DB
+	DG     *discordgo.Session
+	Config ArchiverBotConfig
 }
 
 // ArchiverBotConfig is attached to ArchiverBot so config settings can be
@@ -34,15 +32,10 @@ type ArchiverBotConfig struct {
 
 // BotReadyHandler is called when the bot is considered ready to use the Discord session
 func (bot *ArchiverBot) BotReadyHandler(s *discordgo.Session, r *discordgo.Ready) {
-	// Register all servers the bot is active in
-	for _, g := range r.Guilds {
-		err := bot.registerOrUpdateServer(g)
-		if err != nil {
-			log.Errorf("unable to register or update server: %v", err)
-		}
-	}
-
-	bot.updateServerRegistrations(r.Guilds)
+	// r.Guilds has all of our connected servers, so we should
+	// update server registrations and set any registered servers
+	// not in r.Guilds as inactive
+	bot.updateInactiveRegistrations(r.Guilds)
 
 	// Use this to clean up commands if IDs have changed
 	// TODO remove later if unnecessary
@@ -51,37 +44,48 @@ func (bot *ArchiverBot) BotReadyHandler(s *discordgo.Session, r *discordgo.Ready
 	// globals.RegisteredCommands, err = bot.DG.ApplicationCommandBulkOverwrite(bot.DG.State.User.ID, "", globals.Commands)
 	log.Debug("registering slash commands")
 	var err error
-	existingCommands, err := bot.DG.ApplicationCommands(bot.DG.State.User.ID, "")
-	for _, cmd := range globals.Commands {
-		for _, existingCmd := range existingCommands {
-			if existingCmd.Name == cmd.Name {
-				editedCmd, err := bot.DG.ApplicationCommandEdit(bot.DG.State.User.ID, "", existingCmd.ID, cmd)
-				if err != nil {
-					log.Errorf("cannot update command %s: %v", cmd.Name, err)
-				}
-				globals.RegisteredCommands = append(globals.RegisteredCommands, editedCmd)
-			} else {
-				createdCmd, err := bot.DG.ApplicationCommandCreate(bot.DG.State.User.ID, "", cmd)
-				if err != nil {
-					log.Errorf("cannot update command %s: %v", cmd.Name, err)
-				}
-				globals.RegisteredCommands = append(globals.RegisteredCommands, createdCmd)
+	registeredCommands, err := bot.DG.ApplicationCommands(bot.DG.State.User.ID, "")
+	for _, botCommand := range globals.Commands {
+		for i, registeredCommand := range registeredCommands {
+			// Check if this registered command matches a configured bot command
+			if botCommand.Name == registeredCommand.Name {
+				// Only update if it differs from what's already registered
+				if botCommand != registeredCommand {
+					editedCmd, err := bot.DG.ApplicationCommandEdit(bot.DG.State.User.ID, "", registeredCommand.ID, botCommand)
+					if err != nil {
+						log.Errorf("cannot update command %s: %v", botCommand.Name, err)
+					}
+					globals.RegisteredCommands = append(globals.RegisteredCommands, editedCmd)
 
+					// Bot command was updated, so skip to the next bot command
+					break
+				}
+			}
+
+			// Check on the last item of registeredCommands
+			if i == len(registeredCommands) {
+				// This is a stale registeredCommand, so we should delete it
+				err := bot.DG.ApplicationCommandDelete(bot.DG.State.User.ID, "", registeredCommand.ID)
+				if err != nil {
+					log.Errorf("cannot remove command %s: %v", registeredCommand.Name, err)
+				}
 			}
 		}
-	}
 
-	if err != nil {
-		log.Errorf("cannot update commands: %v", err)
-	}
-
-	if bot.StartingUp {
-		time.Sleep(time.Second * 10)
-		bot.StartingUp = false
-		err := bot.updateServersWatched()
+		// If we're here, then we have a command that needs to be registered
+		createdCmd, err := bot.DG.ApplicationCommandCreate(bot.DG.State.User.ID, "", botCommand)
 		if err != nil {
-			log.Error("unable to update servers watched")
+			log.Errorf("cannot update command %s: %v", botCommand.Name, err)
 		}
+		globals.RegisteredCommands = append(globals.RegisteredCommands, createdCmd)
+		if err != nil {
+			log.Errorf("cannot update commands: %v", err)
+		}
+	}
+
+	err = bot.updateServersWatched()
+	if err != nil {
+		log.Error("unable to update servers watched")
 	}
 }
 

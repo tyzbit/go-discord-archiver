@@ -44,7 +44,7 @@ func (bot *ArchiverBot) getGlobalStats() botStats {
 		Group("request_domain_name").Order("count DESC").Find(&topDomains)
 	bot.DB.Model(&ServerRegistration{}).Count(&ServersConfigured)
 	bot.DB.Find(&ServerRegistration{}).Where(&ServerRegistration{
-		Active: sql.NullBool{Bool: true}}).Count(&ServersActive)
+		Active: sql.NullBool{Valid: true, Bool: true}}).Count(&ServersActive)
 
 	var topDomainsFormatted string
 	for i := 0; i < 5 && i < len(topDomains); i++ {

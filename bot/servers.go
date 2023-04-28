@@ -13,27 +13,19 @@ type ServerRegistration struct {
 	DiscordId string `gorm:"primaryKey"`
 	Name      string
 	UpdatedAt time.Time
-	Active    ConfigBool   `pretty:"Bot is active in the server" gorm:"default:true"`
+	Active    sql.NullBool `pretty:"Bot is active in the server" gorm:"default:true"`
 	Config    ServerConfig `gorm:"foreignKey:DiscordId"`
 }
 
-type ConfigBool struct {
-	sql.NullBool
-}
-
-type ConfigInt32 struct {
-	sql.NullInt32
-}
-
 type ServerConfig struct {
-	DiscordId          string      `gorm:"primaryKey" pretty:"Server ID"`
-	Name               string      `pretty:"Server Name" gorm:"default:default"`
-	ArchiveEnabled     ConfigBool  `pretty:"Bot enabled" gorm:"default:true"`
-	AlwaysArchiveFirst ConfigBool  `pretty:"Archive the page first (slower)" gorm:"default:false"`
-	ShowDetails        ConfigBool  `pretty:"Show extra details" gorm:"default:true"`
-	RemoveRetry        ConfigBool  `pretty:"Remove the retry button automatically" gorm:"default:true"`
-	RetryAttempts      ConfigInt32 `pretty:"Number of attempts to archive a URL" gorm:"default:1"`
-	RemoveRetriesDelay ConfigInt32 `pretty:"Seconds to wait to remove retry button" gorm:"default:30"`
+	DiscordId          string        `gorm:"primaryKey" pretty:"Server ID"`
+	Name               string        `pretty:"Server Name" gorm:"default:default"`
+	ArchiveEnabled     sql.NullBool  `pretty:"Bot enabled" gorm:"default:true"`
+	AlwaysArchiveFirst sql.NullBool  `pretty:"Archive the page first (slower)" gorm:"default:false"`
+	ShowDetails        sql.NullBool  `pretty:"Show extra details" gorm:"default:true"`
+	RemoveRetry        sql.NullBool  `pretty:"Remove the retry button automatically" gorm:"default:true"`
+	RetryAttempts      sql.NullInt32 `pretty:"Number of attempts to archive a URL" gorm:"default:1"`
+	RemoveRetriesDelay sql.NullInt32 `pretty:"Seconds to wait to remove retry button" gorm:"default:30"`
 	UpdatedAt          time.Time
 }
 
@@ -50,7 +42,7 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild) error {
 
 	var registration ServerRegistration
 	bot.DB.Find(&registration, g.ID)
-	active := ConfigBool{sql.NullBool{Bool: true}}
+	active := sql.NullBool{Bool: true}
 	// The server registration does not exist, so we will create with defaults
 	if (registration == ServerRegistration{}) {
 		log.Info("creating registration for new server: ", guild.Name, "(", g.ID, ")")
@@ -92,8 +84,8 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild) error {
 func (bot *ArchiverBot) updateServerRegistrations(activeGuilds []*discordgo.Guild) {
 	var sr []ServerRegistration
 	bot.DB.Find(&sr)
-	active := ConfigBool{sql.NullBool{Bool: true}}
-	inactive := ConfigBool{sql.NullBool{Valid: true, Bool: false}}
+	active := sql.NullBool{Bool: true}
+	inactive := sql.NullBool{Valid: true, Bool: false}
 
 	// Update all registrations for whether or not the server is active
 	for _, reg := range sr {

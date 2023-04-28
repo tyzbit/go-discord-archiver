@@ -22,8 +22,8 @@ const (
 )
 
 // handleArchiveRequest takes a Discord session and a message string and
-// calls go-archiver with a []string of URLs parsed from the message.
-// It then sends an embed with the resulting archived URLs.
+// calls go-archiver with a []string of URLs parsed from the message
+// It then sends an embed with the resulting archived URLs
 // TODO: break out into more functions?
 func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, newSnapshot bool) (
 	replies []*discordgo.MessageSend, errs []error) {
@@ -31,7 +31,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 	typingStop := make(chan bool, 1)
 	go bot.typeInChannel(typingStop, r.ChannelID)
 
-	// If true, this is a DM.
+	// If true, this is a DM
 	if r.GuildID == "" {
 		typingStop <- true
 		replies = []*discordgo.MessageSend{
@@ -43,7 +43,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 	}
 
 	sc := bot.getServerConfig(r.GuildID)
-	if !sc.ArchiveEnabled {
+	if sc.ArchiveEnabled.Valid && !sc.ArchiveEnabled.Bool {
 		log.Info("URLs were not archived because automatic archive is not enabled")
 		typingStop <- true
 		return replies, errs
@@ -92,7 +92,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 	log.Debug("URLs parsed from message: ", strings.Join(messageUrls, ", "))
 
 	// This UUID will be used to tie together the ArchiveEventEvent,
-	// the archiveRequestUrls and the archiveResponseUrls.
+	// the archiveRequestUrls and the archiveResponseUrls
 	archiveEventUUID := uuid.New().String()
 
 	var archives []ArchiveEvent
@@ -102,13 +102,13 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 			log.Error("unable to get domain name for url: ", url)
 		}
 
-		// See if there is a response URL for a given request URL in the database.
+		// See if there is a response URL for a given request URL in the database
 		cachedArchiveEvents := []ArchiveEvent{}
 		bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{RequestURL: url, Cached: false}).Find(&cachedArchiveEvents)
 		var responseUrl, responseDomainName string
 
 		// If we have a response, create a new ArchiveEvent with it,
-		// marking it as cached.
+		// marking it as cached
 		for _, cachedArchiveEvent := range cachedArchiveEvents {
 			if cachedArchiveEvent.ResponseURL != "" && cachedArchiveEvent.ResponseDomainName != "" {
 				responseUrl = cachedArchiveEvent.ResponseURL
@@ -134,7 +134,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 		}
 
 		// We have not already archived this URL, so build an object
-		// for doing so.
+		// for doing so
 		log.Debug("url was not cached: ", url)
 		archives = append(archives, ArchiveEvent{
 			UUID:                  uuid.New().String(),
@@ -152,9 +152,9 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 		if archive.ResponseURL == "" {
 			log.Debug("need to call archive.org api for ", archive.RequestURL)
 
-			// This will always try to archive the page if not found.
-			url, err := goarchive.GetLatestURL(archive.RequestURL, sc.RetryAttempts,
-				sc.AlwaysArchiveFirst || newSnapshot, bot.Config.Cookie)
+			// This will always try to archive the page if not found
+			url, err := goarchive.GetLatestURL(archive.RequestURL, uint(sc.RetryAttempts.Int32),
+				sc.AlwaysArchiveFirst.Bool || newSnapshot, bot.Config.Cookie)
 			if err != nil {
 				log.Errorf("error archiving url: %v", err)
 				url = fmt.Sprint("%w", errors.Unwrap(err))
@@ -174,7 +174,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 			archivedLinks = append(archivedLinks, url)
 		} else {
 			// We have a response URL, so add that to the links to be used
-			// in the message.
+			// in the message
 			archivedLinks = append(archivedLinks, archive.ResponseURL)
 		}
 	}
@@ -235,7 +235,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 		}
 
 		if link != "" {
-			if sc.ShowDetails {
+			if sc.ShowDetails.Valid && sc.ShowDetails.Bool {
 				embeds[0].Fields = []*discordgo.MessageEmbedField{
 					{
 						Name: "Oldest Archived Copy",

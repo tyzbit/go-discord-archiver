@@ -1,6 +1,8 @@
 package bot
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -57,7 +59,20 @@ func (bot *ArchiverBot) removeRetryButtonAfterSleep(message *discordgo.Message) 
 	}
 
 	sc := bot.getServerConfig(guild.ID)
-	time.Sleep(time.Duration(sc.RemoveRetriesDelay))
+	var sleep int32
+	if sc.RemoveRetriesDelay.Valid {
+		sleep = sc.RemoveRetriesDelay.Int32
+	} else {
+		field := "RemoveRetriesDelay"
+		log.Debugf("%s was not set, getting gorm default", field)
+		gormDefault := getTagValue(ServerConfig{}, field, "gorm")
+		if value, err := strconv.ParseInt(strings.Split(gormDefault, ":")[1], 10, 32); err != nil {
+			log.Errorf("unable to get default gorm value for %s", field)
+		} else {
+			sleep = int32(value)
+		}
+	}
+	time.Sleep(time.Duration(sleep) * time.Second)
 	me := discordgo.MessageEdit{
 		// Remove the components (button)
 		Components: []discordgo.MessageComponent{},
@@ -67,7 +82,7 @@ func (bot *ArchiverBot) removeRetryButtonAfterSleep(message *discordgo.Message) 
 	}
 
 	log.Debugf("removing reply button (waited %vs) for message ID %s in channel %s, guild: %s(%s)",
-		sc.RemoveRetriesDelay, message.ID, message.ChannelID, guild.Name, guild.ID)
+		sleep, message.ID, message.ChannelID, guild.Name, guild.ID)
 	_, err := bot.DG.ChannelMessageEditComplex(&me)
 	if err != nil {
 		log.Errorf("unable to remove retry button on message id %v, server: %s(%s): %v, ",

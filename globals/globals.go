@@ -11,7 +11,7 @@ const (
 	Settings = "settings"
 	Help     = "help"
 
-	// Bot settings
+	// Bot settings unique handler names
 	// Booleans
 	BotEnabled         = "enabled"
 	AlwaysArchiveFirst = "alwayssnapshotfirst"
@@ -27,7 +27,7 @@ const (
 	// Archive.org URL timestamp layout
 	ArchiveOrgTimestampLayout = "20060102150405"
 
-	// Help text
+	// Shown to the user when `/help` is called
 	BotHelpText = `**Usage**
 	React to a message that has links with 🏛 (The "classical building" emoji) and the bot will respond in the channel with an archive.org link for the link(s). It saves the page to archive.org if needed.
 
@@ -52,8 +52,8 @@ var (
 	MaxAllowedRetryAttemptsFloat = float64(MaxAllowedRetryAttempts)
 
 	AllowedRetryAttemptRemovalDelayValues = []int{10, 30, 90, 120, 300}
-	// Verb takes a boolean and returns "enabled" or "disabled"
-	Verb = map[bool]string{
+	// Enabled takes a boolean and returns "enabled" or "disabled"
+	Enabled = map[bool]string{
 		true:  "enabled",
 		false: "disabled",
 	}

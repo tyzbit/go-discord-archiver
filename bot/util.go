@@ -17,11 +17,11 @@ import (
 // and returns an array of the field names. Ripped from
 // https://stackoverflow.com/a/18927729
 func convertFlatStructToSliceStringMap(i interface{}) []map[string]string {
-	// Get reflections
 	t := reflect.TypeOf(i)
 	tv := reflect.ValueOf(i)
 
-	// Keys is a list of keys of the values map. It's used for sorting later
+	// Keys is a list of keys of the values map
+	// It's used for alphanumeric sorting later
 	keys := make([]string, 0, t.NumField())
 
 	// Values is an object that will hold an unsorted representation
@@ -37,8 +37,6 @@ func convertFlatStructToSliceStringMap(i interface{}) []map[string]string {
 	}
 
 	sort.Strings(keys)
-
-	// Now we will sort the values returned above into a sortedValues
 	sortedValues := make([]map[string]string, 0, t.NumField())
 	for _, k := range keys {
 		sortedValues = append(sortedValues, map[string]string{k: values[k]})
@@ -47,8 +45,8 @@ func convertFlatStructToSliceStringMap(i interface{}) []map[string]string {
 	return sortedValues
 }
 
-// getTagValue looks up the tag for a given field of the specified type.
-// Be advised, if the tag can't be found, it returns an empty string.
+// getTagValue looks up the tag for a given field of the specified type
+// Be advised, if the tag can't be found, it returns an empty string
 func getTagValue(i interface{}, field string, tag string) string {
 	r, ok := reflect.TypeOf(i).FieldByName(field)
 	if !ok {
@@ -57,14 +55,20 @@ func getTagValue(i interface{}, field string, tag string) string {
 	return r.Tag.Get(tag)
 }
 
-// Returns a multiline string that pretty prints botStats.
-func structToPrettyDiscordFields(i any) []*discordgo.MessageEmbedField {
+// Returns a multiline string that pretty prints botStats
+func structToPrettyDiscordFields(i any, globalMessage bool) []*discordgo.MessageEmbedField {
 	var fields ([]*discordgo.MessageEmbedField)
 
 	stringMapSlice := convertFlatStructToSliceStringMap(i)
 
 	for _, stringMap := range stringMapSlice {
 		for key, value := range stringMap {
+			globalKey := getTagValue(i, key, "global") == "true"
+			// If this key is a global key but
+			// the message is not a global message, skip adding the field
+			if globalKey && !globalMessage {
+				continue
+			}
 			formattedKey := getTagValue(i, key, "pretty")
 			newField := discordgo.MessageEmbedField{
 				Name:   formattedKey,
@@ -83,7 +87,7 @@ func retryOptions(sc ServerConfig) (options []discordgo.SelectMenuOption) {
 	for i := globals.MinAllowedRetryAttempts; i <= globals.MaxAllowedRetryAttempts; i++ {
 
 		description := ""
-		if uint(i) == sc.RetryAttempts {
+		if sc.RetryAttempts.Valid && int32(i) == sc.RetryAttempts.Int32 {
 			description = "Current value"
 		}
 
@@ -101,7 +105,7 @@ func retryRemoveOptions(sc ServerConfig) (options []discordgo.SelectMenuOption) 
 	for _, value := range globals.AllowedRetryAttemptRemovalDelayValues {
 
 		description := ""
-		if uint(value) == sc.RemoveRetriesDelay {
+		if sc.RemoveRetriesDelay.Valid && int32(value) == sc.RemoveRetriesDelay.Int32 {
 			description = "Current value"
 		}
 
@@ -115,7 +119,7 @@ func retryRemoveOptions(sc ServerConfig) (options []discordgo.SelectMenuOption) 
 }
 
 // typeInChannel sets the typing indicator for a channel. The indicator is cleared
-// when a message is sent.
+// when a message is sent
 func (bot *ArchiverBot) typeInChannel(channel chan bool, channelID string) {
 	for {
 		select {
@@ -139,11 +143,11 @@ func (bot *ArchiverBot) SettingsIntegrationResponse(sc ServerConfig) *discordgo.
 				Components: []discordgo.MessageComponent{
 					discordgo.Button{
 						Label:    getTagValue(sc, "ArchiveEnabled", "pretty"),
-						Style:    globals.ButtonStyle[sc.ArchiveEnabled],
+						Style:    globals.ButtonStyle[sc.ArchiveEnabled.Valid && sc.ArchiveEnabled.Bool],
 						CustomID: globals.BotEnabled},
 					discordgo.Button{
 						Label:    getTagValue(sc, "ShowDetails", "pretty"),
-						Style:    globals.ButtonStyle[sc.ShowDetails],
+						Style:    globals.ButtonStyle[sc.ShowDetails.Valid && sc.ShowDetails.Bool],
 						CustomID: globals.Details},
 				},
 			},
@@ -151,11 +155,11 @@ func (bot *ArchiverBot) SettingsIntegrationResponse(sc ServerConfig) *discordgo.
 				Components: []discordgo.MessageComponent{
 					discordgo.Button{
 						Label:    getTagValue(sc, "AlwaysArchiveFirst", "pretty"),
-						Style:    globals.ButtonStyle[sc.AlwaysArchiveFirst],
+						Style:    globals.ButtonStyle[sc.AlwaysArchiveFirst.Valid && sc.AlwaysArchiveFirst.Bool],
 						CustomID: globals.AlwaysArchiveFirst},
 					discordgo.Button{
-						Label:    getTagValue(sc, "RemoveRetries", "pretty"),
-						Style:    globals.ButtonStyle[sc.AlwaysArchiveFirst],
+						Label:    getTagValue(sc, "RemoveRetry", "pretty"),
+						Style:    globals.ButtonStyle[sc.RemoveRetry.Valid && sc.RemoveRetry.Bool],
 						CustomID: globals.RemoveRetry},
 				},
 			},
@@ -182,7 +186,7 @@ func (bot *ArchiverBot) SettingsIntegrationResponse(sc ServerConfig) *discordgo.
 }
 
 // settingsFailureIntegrationResponse returns a *discordgo.InteractionResponseData
-// stating that a failure to update settings has occured.
+// stating that a failure to update settings has occured
 func (bot *ArchiverBot) settingsFailureIntegrationResponse() *discordgo.InteractionResponseData {
 	return &discordgo.InteractionResponseData{
 		Flags: uint64(discordgo.MessageFlagsEphemeral),
@@ -196,7 +200,7 @@ func (bot *ArchiverBot) settingsFailureIntegrationResponse() *discordgo.Interact
 }
 
 // settingsFailureIntegrationResponse returns a *discordgo.InteractionResponseData
-// stating that a failure to update settings has occured.
+// stating that a failure to update settings has occured
 func (bot *ArchiverBot) settingsDMFailureIntegrationResponse() *discordgo.InteractionResponseData {
 	return &discordgo.InteractionResponseData{
 		Flags: uint64(discordgo.MessageFlagsEphemeral),
@@ -209,7 +213,7 @@ func (bot *ArchiverBot) settingsDMFailureIntegrationResponse() *discordgo.Intera
 	}
 }
 
-// deleteAllCommands is referenced in bot.go
+// deleteAllCommands is referenced in bot.go (but is probably commented out)
 func (bot *ArchiverBot) deleteAllCommands() {
 	globalCommands, err := bot.DG.ApplicationCommands(bot.DG.State.User.ID, "")
 	if err != nil {

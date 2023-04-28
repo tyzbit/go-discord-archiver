@@ -20,6 +20,7 @@ type MessageEvent struct {
 	ArchiveEventEvents []ArchiveEventEvent `gorm:"foreignKey:UUID"`
 }
 
+// A InteractionEvent when a user interacts with an Embed
 type InteractionEvent struct {
 	CreatedAt          time.Time
 	UUID               string `gorm:"primaryKey"`
@@ -32,7 +33,7 @@ type InteractionEvent struct {
 	ArchiveEventEvents []ArchiveEventEvent `gorm:"foreignKey:UUID"`
 }
 
-// Every successful ArchiveEventEvent will come from a message.
+// Every successful ArchiveEventEvent will come from a message
 type ArchiveEventEvent struct {
 	CreatedAt      time.Time
 	UUID           string `gorm:"primaryKey"`
@@ -46,7 +47,7 @@ type ArchiveEventEvent struct {
 }
 
 // This is the representation of request and response URLs from users or
-// the Archiver API.
+// the Archiver API
 type ArchiveEvent struct {
 	CreatedAt             time.Time
 	UUID                  string `gorm:"primaryKey"`
@@ -60,13 +61,13 @@ type ArchiveEvent struct {
 	Cached                bool
 }
 
-// createMessageEvent logs a given message event into the database.
+// createMessageEvent logs a given message event into the database
 func (bot *ArchiverBot) createMessageEvent(m MessageEvent) {
 	m.UUID = uuid.New().String()
 	bot.DB.Create(&m)
 }
 
-// createInteractionEvent logs a given message event into the database.
+// createInteractionEvent logs a given message event into the database
 func (bot *ArchiverBot) createInteractionEvent(i InteractionEvent) {
 	i.UUID = uuid.New().String()
 	bot.DB.Create(&i)

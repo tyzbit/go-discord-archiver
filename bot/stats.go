@@ -1,9 +1,12 @@
 package bot
 
 import (
+	"database/sql"
 	"fmt"
 )
 
+// botStats is read by structToPrettyDiscordFields and converted
+// into a slice of *discordgo.MessageEmbedField
 type botStats struct {
 	ArchiveRequests   int64  `pretty:"Times the bot has been called"`
 	MessagesSent      int64  `pretty:"Messages Sent"`
@@ -11,32 +14,37 @@ type botStats struct {
 	URLsArchived      int64  `pretty:"URLs Archived"`
 	Interactions      int64  `pretty:"Interactions with the bot"`
 	TopDomains        string `pretty:"Top 5 Domains" inline:"false"`
-	ServersWatched    int64  `pretty:"Servers Watched"`
+	ServersActive     int64  `pretty:"Active servers"`
+	ServersConfigured int64  `pretty:"Configured servers" global:"true"`
 }
 
-type domainStats struct {
+// domainStats is a slice of simple objects that specify a domain name
+// and a count, for use in stats commands to determine most
+// popular domains
+type domainStats []struct {
 	RequestDomainName string
 	Count             int
 }
 
-// getGlobalStats calls the database to get global stats for the bot.
+// getGlobalStats calls the database to get global stats for the bot
 // The output here is not appropriate to send to individual servers, except
-// for ServersWatched.
+// for ServersActive
 func (bot *ArchiverBot) getGlobalStats() botStats {
-	var ArchiveRequests, MessagesSent, CallsToArchiveOrg, Interactions, ServersWatched int64
+	var ArchiveRequests, MessagesSent, Interactions, CallsToArchiveOrg, URLsArchived, ServersConfigured, ServersActive int64
 	serverId := bot.DG.State.User.ID
 	botId := bot.DG.State.User.ID
-	archiveRows := []ArchiveEventEvent{}
-	var topDomains []domainStats
+	var topDomains domainStats
 
 	bot.DB.Model(&MessageEvent{}).Not(&MessageEvent{AuthorId: botId}).Count(&ArchiveRequests)
 	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{AuthorId: serverId}).Count(&MessagesSent)
 	bot.DB.Model(&InteractionEvent{}).Where(&InteractionEvent{}).Count(&Interactions)
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{Cached: false}).Count(&CallsToArchiveOrg)
-	bot.DB.Model(&ArchiveEvent{}).Scan(&archiveRows)
+	bot.DB.Model(&ArchiveEvent{}).Count(&URLsArchived)
 	bot.DB.Model(&ArchiveEvent{}).Select("request_domain_name, count(request_domain_name) as count").
 		Group("request_domain_name").Order("count DESC").Find(&topDomains)
-	bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{}).Count(&ServersWatched)
+	bot.DB.Model(&ServerRegistration{}).Count(&ServersConfigured)
+	bot.DB.Find(&ServerRegistration{}).Where(&ServerRegistration{
+		Active: ConfigBool{sql.NullBool{Bool: true}}}).Count(&ServersActive)
 
 	var topDomainsFormatted string
 	for i := 0; i < 5 && i < len(topDomains); i++ {
@@ -52,31 +60,31 @@ func (bot *ArchiverBot) getGlobalStats() botStats {
 		ArchiveRequests:   ArchiveRequests,
 		MessagesSent:      MessagesSent,
 		CallsToArchiveOrg: CallsToArchiveOrg,
-		URLsArchived:      int64(len(archiveRows)),
+		URLsArchived:      URLsArchived,
 		Interactions:      Interactions,
 		TopDomains:        topDomainsFormatted,
-		ServersWatched:    ServersWatched,
+		ServersConfigured: ServersConfigured,
+		ServersActive:     ServersActive,
 	}
 }
 
-// getServerStats gets the stats for a particular server with ID serverId.
+// getServerStats gets the stats for a particular server with ID serverId
 // If you want global stats, use getGlobalStats()
 func (bot *ArchiverBot) getServerStats(serverId string) botStats {
-	var ArchiveRequests, MessagesSent, CallsToArchiveOrg, Interactions, ServersWatched int64
+	var ArchiveRequests, MessagesSent, CallsToArchiveOrg, URLsArchived, Interactions, ServersActive int64
 	botId := bot.DG.State.User.ID
-	archiveRows := []ArchiveEventEvent{}
-	var topDomains []domainStats
+	var topDomains domainStats
 
 	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{ServerID: serverId}).
 		Not(&MessageEvent{AuthorId: botId}).Count(&ArchiveRequests)
 	bot.DB.Model(&MessageEvent{}).Where(&MessageEvent{ServerID: serverId, AuthorId: botId}).Count(&MessagesSent)
 	bot.DB.Model(&InteractionEvent{}).Where(&InteractionEvent{ServerID: serverId}).Count(&Interactions)
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{ServerID: serverId, Cached: false}).Count(&CallsToArchiveOrg)
-	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{ServerID: serverId}).Scan(&archiveRows)
+	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{ServerID: serverId}).Count(&ArchiveRequests)
 	bot.DB.Model(&ArchiveEvent{}).Where(&ArchiveEvent{ServerID: serverId}).
 		Select("request_domain_name, count(request_domain_name) as count").Order("count DESC").
 		Group("request_domain_name").Find(&topDomains)
-	bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{}).Count(&ServersWatched)
+	bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{}).Count(&ServersActive)
 
 	var topDomainsFormatted string
 	for i := 0; i < 5 && i < len(topDomains); i++ {
@@ -92,9 +100,9 @@ func (bot *ArchiverBot) getServerStats(serverId string) botStats {
 		ArchiveRequests:   ArchiveRequests,
 		MessagesSent:      MessagesSent,
 		CallsToArchiveOrg: CallsToArchiveOrg,
-		URLsArchived:      int64(len(archiveRows)),
+		URLsArchived:      URLsArchived,
 		Interactions:      Interactions,
 		TopDomains:        topDomainsFormatted,
-		ServersWatched:    ServersWatched,
+		ServersActive:     ServersActive,
 	}
 }

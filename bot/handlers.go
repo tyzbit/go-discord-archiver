@@ -10,6 +10,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// ArchiverBot is the main type passed around throughout the code
+// It has many functions for overall bot management
 type ArchiverBot struct {
 	DB         *gorm.DB
 	DG         *discordgo.Session
@@ -17,6 +19,8 @@ type ArchiverBot struct {
 	StartingUp bool
 }
 
+// ArchiverBotConfig is attached to ArchiverBot so config settings can be
+// accessed easily
 type ArchiverBotConfig struct {
 	AdminIds   []string `env:"ADMINISTRATOR_IDS"`
 	DBHost     string   `env:"DB_HOST"`
@@ -28,8 +32,9 @@ type ArchiverBotConfig struct {
 	Cookie     string   `env:"COOKIE"`
 }
 
-// BotReadyHandler is called when the bot is considered ready to use the Discord session.
+// BotReadyHandler is called when the bot is considered ready to use the Discord session
 func (bot *ArchiverBot) BotReadyHandler(s *discordgo.Session, r *discordgo.Ready) {
+	// Register all servers the bot is active in
 	for _, g := range r.Guilds {
 		err := bot.registerOrUpdateServer(g)
 		if err != nil {
@@ -37,13 +42,15 @@ func (bot *ArchiverBot) BotReadyHandler(s *discordgo.Session, r *discordgo.Ready
 		}
 	}
 
-	// Use this to clean up commands if IDs have changed.
+	bot.updateServerRegistrations(r.Guilds)
+
+	// Use this to clean up commands if IDs have changed
 	// TODO remove later if unnecessary
 	// log.Debug("removing all commands")
 	// bot.deleteAllCommands()
+	// globals.RegisteredCommands, err = bot.DG.ApplicationCommandBulkOverwrite(bot.DG.State.User.ID, "", globals.Commands)
 	log.Debug("registering slash commands")
 	var err error
-	// globals.RegisteredCommands, err = bot.DG.ApplicationCommandBulkOverwrite(bot.DG.State.User.ID, "", globals.Commands)
 	existingCommands, err := bot.DG.ApplicationCommands(bot.DG.State.User.ID, "")
 	for _, cmd := range globals.Commands {
 		for _, existingCmd := range existingCommands {
@@ -79,7 +86,7 @@ func (bot *ArchiverBot) BotReadyHandler(s *discordgo.Session, r *discordgo.Ready
 }
 
 // GuildCreateHandler is called whenever the bot joins a new guild. It is also lazily called upon initial
-// connection to Discord.
+// connection to Discord
 func (bot *ArchiverBot) GuildCreateHandler(s *discordgo.Session, gc *discordgo.GuildCreate) {
 	if gc.Guild.Unavailable {
 		return
@@ -92,7 +99,7 @@ func (bot *ArchiverBot) GuildCreateHandler(s *discordgo.Session, gc *discordgo.G
 }
 
 // This function will be called every time a new react is created on any message
-// that the authenticated bot has access to.
+// that the authenticated bot has access to
 func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
 	if r.MessageReaction.Emoji.Name == "🏛️" {
 		var m *discordgo.Message
@@ -104,7 +111,7 @@ func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *disco
 				return
 			}
 			// Create a fake message so that we can handle reacts
-			// and interactions.
+			// and interactions
 			m = &discordgo.Message{
 				ID: r.MessageReaction.MessageID,
 				Member: &discordgo.Member{
@@ -117,7 +124,7 @@ func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *disco
 			}
 		} else {
 			// Create a fake message so that we can handle reacts
-			// and interactions.
+			// and interactions
 			m = &discordgo.Message{
 				ID: r.MessageID,
 				Member: &discordgo.Member{
@@ -208,8 +215,8 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 					guild.Name + "(" + guild.ID + ")"
 			} else {
 				log.Debug("handling stats DM request")
-				// We can be sure now the request was a direct message.
-				// Deny by default.
+				// We can be sure now the request was a direct message
+				// Deny by default
 				administrator := false
 
 			out:
@@ -220,7 +227,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 						// This prevents us from checking all IDs now that
 						// we found a match but is a fairly ineffectual
 						// optimization since config.AdminIds will probably
-						// only have dozens of IDs at most.
+						// only have dozens of IDs at most
 						break out
 					}
 				}
@@ -259,7 +266,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 					Embeds: []*discordgo.MessageEmbed{
 						{
 							Title:  "🏛️ Archive.org Bot Stats",
-							Fields: structToPrettyDiscordFields(stats),
+							Fields: structToPrettyDiscordFields(stats, directMessage),
 							Color:  globals.FrenchGray,
 						},
 					},
@@ -272,7 +279,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 		},
 		globals.Settings: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			log.Debug("handling settings request")
-			// This is a DM, so settings cannot be changed.
+			// This is a DM, so settings cannot be changed
 			if i.GuildID == "" {
 				err := bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -299,13 +306,14 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 				})
 
 				sc := bot.getServerConfig(i.GuildID)
+				resp := bot.SettingsIntegrationResponse(sc)
 				err = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: bot.SettingsIntegrationResponse(sc),
+					Data: resp,
 				})
 
 				if err != nil {
-					log.Errorf("error responding to slash command"+globals.Settings+", err: %v", err)
+					log.Errorf("error responding to slash command "+globals.Settings+", err: %v", err)
 				}
 			}
 
@@ -401,7 +409,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 			sc := bot.getServerConfig(i.GuildID)
 			var interactionErr error
 
-			inverse := !sc.ArchiveEnabled
+			inverse := sc.ArchiveEnabled.Valid && !sc.ArchiveEnabled.Bool
 			sc, ok := bot.updateServerSetting(i.GuildID, "archive_enabled", inverse)
 
 			guild, err := bot.DG.Guild(i.Interaction.GuildID)
@@ -440,7 +448,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 		},
 		globals.Details: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			sc := bot.getServerConfig(i.GuildID)
-			inverse := !sc.ShowDetails
+			inverse := sc.ShowDetails.Valid && !sc.ShowDetails.Bool
 			var interactionErr error
 			sc, ok := bot.updateServerSetting(i.GuildID, "show_details", inverse)
 
@@ -476,7 +484,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 		},
 		globals.AlwaysArchiveFirst: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			sc := bot.getServerConfig(i.GuildID)
-			inverse := !sc.AlwaysArchiveFirst
+			inverse := sc.AlwaysArchiveFirst.Valid && !sc.AlwaysArchiveFirst.Bool
 			var interactionErr error
 			sc, ok := bot.updateServerSetting(i.GuildID, "always_archive_first", inverse)
 
@@ -512,7 +520,8 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 		},
 		globals.RemoveRetry: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			sc := bot.getServerConfig(i.GuildID)
-			inverse := !sc.RemoveRetries
+			// If the value isn't valid, the setting should end up disabled
+			inverse := sc.RemoveRetry.Valid && !sc.RemoveRetry.Bool
 			var interactionErr error
 			sc, ok := bot.updateServerSetting(i.GuildID, "remove_retry", inverse)
 

@@ -107,7 +107,7 @@ func main() {
 
 	log.Info("using ", dbType, " for the database")
 
-	// Create a new Discord session using the provided bot token.
+	// Create a new Discord session using the provided bot token
 	dg, err := discordgo.New("Bot " + config.Token)
 	if err != nil {
 		log.Fatal("error creating Discord session: ", err)
@@ -115,7 +115,7 @@ func main() {
 
 	// ArchiverBot is an instance of this bot. It has many methods attached to
 	// it for controlling the bot. db is the database object, dg is the
-	// discordgo object.
+	// discordgo object
 	archiveBot := bot.ArchiverBot{
 		DB:         db,
 		DG:         dg,
@@ -135,7 +135,7 @@ func main() {
 	go archiveBot.StartHealthAPI()
 
 	// These handlers get called whenever there's a corresponding
-	// Discord event.
+	// Discord event
 	dg.AddHandler(archiveBot.BotReadyHandler)
 	dg.AddHandler(archiveBot.GuildCreateHandler)
 	dg.AddHandler(archiveBot.MessageReactionAddHandler)
@@ -143,21 +143,21 @@ func main() {
 
 	// We have to be explicit about what we want to receive. In addition,
 	// some intents require additional permissions, which must be granted
-	// to the bot when it's added or after the fact by a guild admin.
+	// to the bot when it's added or after the fact by a guild admin
 	discordIntents := discordgo.IntentsGuildMessages | discordgo.IntentsGuilds |
 		discordgo.IntentsDirectMessages | discordgo.IntentsDirectMessageReactions |
 		discordgo.IntentsGuildMessageReactions
 	dg.Identify.Intents = discordIntents
 
-	// Open a websocket connection to Discord and begin listening.
+	// Open a websocket connection to Discord and begin listening
 	if err := dg.Open(); err != nil {
 		log.Fatal("error opening connection to discord: ", err)
 	}
 
-	// Wait here until CTRL-C or other term signal is received.
+	// Wait here until CTRL-C or other term signal is received
 	log.Info("bot started")
 
-	// Cleanly close down the Discord session.
+	// Cleanly close down the Discord session
 	defer dg.Close()
 
 	// Listen for signals from the OS

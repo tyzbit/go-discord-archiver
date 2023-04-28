@@ -93,7 +93,7 @@ func (bot *ArchiverBot) updateServerRegistrations(activeGuilds []*discordgo.Guil
 	var sr []ServerRegistration
 	bot.DB.Find(&sr)
 	active := ConfigBool{sql.NullBool{Bool: true}}
-	inactive := ConfigBool{sql.NullBool{Bool: false}}
+	inactive := ConfigBool{sql.NullBool{Valid: true, Bool: false}}
 
 	// Update all registrations for whether or not the server is active
 	for _, reg := range sr {

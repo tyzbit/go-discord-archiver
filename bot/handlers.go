@@ -43,43 +43,46 @@ func (bot *ArchiverBot) BotReadyHandler(s *discordgo.Session, r *discordgo.Ready
 	// bot.deleteAllCommands()
 	// globals.RegisteredCommands, err = bot.DG.ApplicationCommandBulkOverwrite(bot.DG.State.User.ID, "", globals.Commands)
 	log.Debug("registering slash commands")
-	var err error
 	registeredCommands, err := bot.DG.ApplicationCommands(bot.DG.State.User.ID, "")
-	for _, botCommand := range globals.Commands {
-		for i, registeredCommand := range registeredCommands {
-			// Check if this registered command matches a configured bot command
-			if botCommand.Name == registeredCommand.Name {
-				// Only update if it differs from what's already registered
-				if botCommand != registeredCommand {
-					editedCmd, err := bot.DG.ApplicationCommandEdit(bot.DG.State.User.ID, "", registeredCommand.ID, botCommand)
-					if err != nil {
-						log.Errorf("cannot update command %s: %v", botCommand.Name, err)
+	if err != nil {
+		log.Errorf("unable to look up registered application commands, err: %s", err)
+	} else {
+		for _, botCommand := range globals.Commands {
+			for i, registeredCommand := range registeredCommands {
+				// Check if this registered command matches a configured bot command
+				if botCommand.Name == registeredCommand.Name {
+					// Only update if it differs from what's already registered
+					if botCommand != registeredCommand {
+						editedCmd, err := bot.DG.ApplicationCommandEdit(bot.DG.State.User.ID, "", registeredCommand.ID, botCommand)
+						if err != nil {
+							log.Errorf("cannot update command %s: %v", botCommand.Name, err)
+						}
+						globals.RegisteredCommands = append(globals.RegisteredCommands, editedCmd)
+
+						// Bot command was updated, so skip to the next bot command
+						break
 					}
-					globals.RegisteredCommands = append(globals.RegisteredCommands, editedCmd)
+				}
 
-					// Bot command was updated, so skip to the next bot command
-					break
+				// Check on the last item of registeredCommands
+				if i == len(registeredCommands) {
+					// This is a stale registeredCommand, so we should delete it
+					err := bot.DG.ApplicationCommandDelete(bot.DG.State.User.ID, "", registeredCommand.ID)
+					if err != nil {
+						log.Errorf("cannot remove command %s: %v", registeredCommand.Name, err)
+					}
 				}
 			}
 
-			// Check on the last item of registeredCommands
-			if i == len(registeredCommands) {
-				// This is a stale registeredCommand, so we should delete it
-				err := bot.DG.ApplicationCommandDelete(bot.DG.State.User.ID, "", registeredCommand.ID)
-				if err != nil {
-					log.Errorf("cannot remove command %s: %v", registeredCommand.Name, err)
-				}
+			// If we're here, then we have a command that needs to be registered
+			createdCmd, err := bot.DG.ApplicationCommandCreate(bot.DG.State.User.ID, "", botCommand)
+			if err != nil {
+				log.Errorf("cannot update command %s: %v", botCommand.Name, err)
 			}
-		}
-
-		// If we're here, then we have a command that needs to be registered
-		createdCmd, err := bot.DG.ApplicationCommandCreate(bot.DG.State.User.ID, "", botCommand)
-		if err != nil {
-			log.Errorf("cannot update command %s: %v", botCommand.Name, err)
-		}
-		globals.RegisteredCommands = append(globals.RegisteredCommands, createdCmd)
-		if err != nil {
-			log.Errorf("cannot update commands: %v", err)
+			globals.RegisteredCommands = append(globals.RegisteredCommands, createdCmd)
+			if err != nil {
+				log.Errorf("cannot update commands: %v", err)
+			}
 		}
 	}
 
@@ -89,14 +92,26 @@ func (bot *ArchiverBot) BotReadyHandler(s *discordgo.Session, r *discordgo.Ready
 	}
 }
 
-// GuildCreateHandler is called whenever the bot joins a new guild. It is also lazily called upon initial
-// connection to Discord
+// GuildCreateHandler is called whenever the bot joins a new guild.
 func (bot *ArchiverBot) GuildCreateHandler(s *discordgo.Session, gc *discordgo.GuildCreate) {
 	if gc.Guild.Unavailable {
 		return
 	}
 
-	err := bot.registerOrUpdateServer(gc.Guild)
+	err := bot.registerOrUpdateServer(gc.Guild, false)
+	if err != nil {
+		log.Errorf("unable to register or update server: %v", err)
+	}
+}
+
+// GuildDeleteHandler is called whenever the bot leaves a guild.
+func (bot *ArchiverBot) GuildDeleteHandler(s *discordgo.Session, gd *discordgo.GuildDelete) {
+	if gd.Guild.Unavailable {
+		return
+	}
+
+	log.Infof("guild %s(%s) deleted (bot was probably kicked)", gd.Guild.Name, gd.Guild.ID)
+	err := bot.registerOrUpdateServer(gd.BeforeDelete, true)
 	if err != nil {
 		log.Errorf("unable to register or update server: %v", err)
 	}

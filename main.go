@@ -137,6 +137,7 @@ func main() {
 	// Discord event
 	dg.AddHandler(archiveBot.BotReadyHandler)
 	dg.AddHandler(archiveBot.GuildCreateHandler)
+	dg.AddHandler(archiveBot.GuildDeleteHandler)
 	dg.AddHandler(archiveBot.MessageReactionAddHandler)
 	dg.AddHandler(archiveBot.InteractionHandler)
 

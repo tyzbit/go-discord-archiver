@@ -13,6 +13,7 @@ type ServerRegistration struct {
 	DiscordId string `gorm:"primaryKey"`
 	Name      string `gorm:"default:default"`
 	UpdatedAt time.Time
+	JoinedAt  time.Time
 	Active    sql.NullBool `pretty:"Bot is active in the server" gorm:"default:true"`
 	Config    ServerConfig `gorm:"foreignKey:DiscordId"`
 }
@@ -33,42 +34,44 @@ const archiverRepoUrl string = "https://github.com/tyzbit/go-discord-archiver"
 
 // registerOrUpdateServer checks if a guild is already registered in the database. If not,
 // it creates it with sensibile defaults
-func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild) error {
-	// Do a lookup for the full guild object
-	guild, err := bot.DG.Guild(g.ID)
-	if err != nil {
-		return fmt.Errorf("unable to look up server by id: %v", g.ID)
+func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild, delete bool) error {
+	status := sql.NullBool{Valid: true, Bool: true}
+	if delete {
+		status = sql.NullBool{Valid: true, Bool: false}
 	}
 
 	var registration ServerRegistration
 	bot.DB.Find(&registration, g.ID)
-	active := sql.NullBool{Valid: true, Bool: true}
 	// The server registration does not exist, so we will create with defaults
 	if registration.Name == "default" {
-		log.Info("creating registration for new server: ", guild.Name, "(", g.ID, ")")
+		log.Info("creating registration for new server: ", g.Name, "(", g.ID, ")")
 		tx := bot.DB.Create(&ServerRegistration{
 			DiscordId: g.ID,
-			Name:      guild.Name,
-			Active:    active,
+			Name:      g.Name,
+			Active:    sql.NullBool{Valid: true, Bool: true},
 			UpdatedAt: time.Now(),
+			JoinedAt:  g.JoinedAt,
 			Config: ServerConfig{
-				Name: guild.Name,
+				Name: g.Name,
 			},
 		})
 
 		// We only expect one server to be updated at a time. Otherwise, return an error
 		if tx.RowsAffected != 1 {
 			return fmt.Errorf("did not expect %v rows to be affected updating "+
-				"server registration for server: %v(%v)", fmt.Sprintf("%v", tx.RowsAffected), guild.Name, g.ID)
+				"server registration for server: %v(%v)", fmt.Sprintf("%v", tx.RowsAffected), g.Name, g.ID)
 		}
 	}
 
-	// Sort of a migration and also a catch-all for registrations that
-	// are not properly saved in the database
-	if registration.Active != active {
+	// Update the registration if the DB is wrong or if the server
+	// was deleted (the bot left) or if JoinedAt is not set
+	// (field was added later so early registrations won't have it)
+	if registration.Active != status || registration.JoinedAt.IsZero() {
+		log.Debugf("updating server %s", g.Name)
 		bot.DB.Model(&ServerRegistration{}).
 			Where(&ServerRegistration{DiscordId: registration.DiscordId}).
-			Updates(&ServerRegistration{Active: active})
+			Updates(&ServerRegistration{Active: status, JoinedAt: g.JoinedAt})
+		bot.updateServersWatched()
 	}
 
 	return nil
@@ -79,22 +82,25 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild) error {
 func (bot *ArchiverBot) updateInactiveRegistrations(activeGuilds []*discordgo.Guild) {
 	var sr []ServerRegistration
 	bot.DB.Find(&sr)
-	var status sql.NullBool
 
 	// Check all registrations for whether or not the server is active
 	for _, reg := range sr {
+		var status sql.NullBool
+		var joinedAt time.Time
 		// If there is no guild in r.Guilds, then we havea config
 		// for a server we're not in anymore
 		status = sql.NullBool{Valid: true, Bool: false}
 		for _, g := range activeGuilds {
 			if g.ID == reg.DiscordId {
 				status = sql.NullBool{Valid: true, Bool: true}
+				joinedAt = g.JoinedAt
 			}
 		}
 
 		// Now the registration is accurate, update the DB if needed
-		if reg.Active != status {
+		if reg.Active != status || reg.JoinedAt.IsZero() {
 			reg.Active = status
+			reg.JoinedAt = joinedAt
 			tx := bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{DiscordId: reg.DiscordId}).
 				Updates(reg)
 

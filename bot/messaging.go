@@ -33,16 +33,15 @@ func (bot *ArchiverBot) sendArchiveResponse(message *discordgo.Message, reply *d
 			ChannelId:      message.ChannelID,
 			ServerID:       message.GuildID,
 		})
-		log.Debug("sending archive message response in ",
-			guild.Name, "(", guild.ID, "), calling user: ",
-			username, "(", message.Member.User.ID, ")")
+		log.Debugf("sending archive message response in %s(%s), calling user: %s(%s)",
+			guild.Name, guild.ID, username, message.Member.User.ID)
 
 		message, err = bot.DG.ChannelMessageSendComplex(message.ChannelID, reply)
 		message.GuildID = guild.ID
 		go bot.removeRetryButtonAfterSleep(message)
 	} else {
-		log.Debug("declining archive message response in ",
-			"calling user: ", username, "(", message.Member.User.ID, ")")
+		log.Debugf("declining archive message response (no guild ID), calling user: %s(%s)",
+			username, message.Member.User.ID)
 	}
 
 	if err != nil {
@@ -61,6 +60,10 @@ func (bot *ArchiverBot) removeRetryButtonAfterSleep(message *discordgo.Message) 
 	sc := bot.getServerConfig(guild.ID)
 	var sleep int32
 	if sc.RemoveRetriesDelay.Valid {
+		if sc.RemoveRetriesDelay.Int32 == 0 {
+			// 0 is disabled
+			return
+		}
 		sleep = sc.RemoveRetriesDelay.Int32
 	} else {
 		field := "RemoveRetriesDelay"

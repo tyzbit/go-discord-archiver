@@ -197,11 +197,11 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 		if err != nil {
 			log.Errorf("unable to get sparkline for url: %v", originalUrl)
 		}
-		oldest, err := time.Parse(globals.ArchiveOrgTimestampLayout, sparkline.FirstTs)
+		oldest, err := time.ParseInLocation(globals.ArchiveOrgTimestampLayout, sparkline.FirstTs, time.UTC)
 		if err != nil {
 			log.Errorf("unable to parse oldest timestamp for url: %v, timestamp: %v", originalUrl, sparkline.FirstTs)
 		}
-		newest, err := time.Parse(globals.ArchiveOrgTimestampLayout, sparkline.LastTs)
+		newest, err := time.ParseInLocation(globals.ArchiveOrgTimestampLayout, sparkline.LastTs, time.UTC)
 		if err != nil {
 			log.Errorf("unable to parse newest timestamp for url: %v, timestamp: %v", originalUrl, sparkline.LastTs)
 		}
@@ -236,17 +236,31 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 
 		if link != "" {
 			if sc.ShowDetails.Valid && sc.ShowDetails.Bool {
+				if !sc.UTCSign.Valid {
+					log.Errorf("Invalid UTC setting for %s(%s)", sc.DiscordId, sc.Name)
+					continue
+				}
+				if err != nil {
+					log.Errorf("Unable to load timezone UTC%s%v", sc.UTCSign.String, sc.UTCOffset)
+					continue
+				}
+				sign := map[string]int{
+					"-": -1,
+					"+": 1,
+				}
+				location := time.FixedZone("UTC", sign[sc.UTCSign.String]*int(sc.UTCOffset.Int32)*60*60)
 				embeds[0].Fields = []*discordgo.MessageEmbedField{
 					{
 						Name: "Oldest Archived Copy",
 						Value: fmt.Sprintf("[%s](%s/%s/%s)",
-							oldest.Format(time.RFC1123), archiveRoot, sparkline.FirstTs, originalUrl),
+							// oldest.In(location).Format(time.RFC1123), archiveRoot, sparkline.FirstTs, originalUrl),
+							oldest.In(location).Format(time.RFC1123Z), archiveRoot, sparkline.FirstTs, originalUrl),
 						Inline: true,
 					},
 					{
 						Name: "Newest Archived Copy",
 						Value: fmt.Sprintf("[%s](%s/%s/%s)",
-							newest.Format(time.RFC1123), archiveRoot, sparkline.LastTs, originalUrl),
+							newest.In(location).Format(time.RFC1123Z), archiveRoot, sparkline.LastTs, originalUrl),
 						Inline: true,
 					},
 					{

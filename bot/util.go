@@ -82,6 +82,40 @@ func structToPrettyDiscordFields(i any, globalMessage bool) []*discordgo.Message
 	return fields
 }
 
+// timeZoneOptions returns a []discordgo.SelectMenuOption for timezones
+func timeZoneOffset(sc ServerConfig) (options []discordgo.SelectMenuOption) {
+	for i := 0; i <= 14; i++ {
+		description := ""
+		if sc.UTCOffset.Valid && sc.UTCOffset.Int32 == int32(i) {
+			description = "Current value"
+		}
+
+		options = append(options, discordgo.SelectMenuOption{
+			Label:       fmt.Sprint(i),
+			Description: description,
+			Value:       fmt.Sprint(i),
+		})
+	}
+	return options
+}
+
+// timeZoneOptions returns a []discordgo.SelectMenuOption for timezones
+func timeZoneSign(sc ServerConfig) (options []discordgo.SelectMenuOption) {
+	signs := []string{"+", "-"}
+	for _, s := range signs {
+		description := ""
+		if sc.UTCSign.Valid && sc.UTCSign.String == s {
+			description = "Current value"
+		}
+		options = append(options, discordgo.SelectMenuOption{
+			Label:       s,
+			Description: description,
+			Value:       s,
+		})
+	}
+	return options
+}
+
 // retryOptions returns a []discordgo.SelectMenuOption for retry attempts
 func retryOptions(sc ServerConfig) (options []discordgo.SelectMenuOption) {
 	for i := globals.MinAllowedRetryAttempts; i <= globals.MaxAllowedRetryAttempts; i++ {
@@ -98,6 +132,7 @@ func retryOptions(sc ServerConfig) (options []discordgo.SelectMenuOption) {
 		})
 	}
 	return options
+
 }
 
 // retryRemoveOptions returns a []discordgo.SelectMenuOption for retry removal delays
@@ -109,8 +144,13 @@ func retryRemoveOptions(sc ServerConfig) (options []discordgo.SelectMenuOption) 
 			description = "Current value"
 		}
 
+		menuLabel := fmt.Sprint(value)
+		if value == 0 {
+			menuLabel = "Don't remove the retry button"
+		}
+
 		options = append(options, discordgo.SelectMenuOption{
-			Label:       fmt.Sprint(value),
+			Label:       menuLabel,
 			Value:       fmt.Sprint(value),
 			Description: description,
 		})
@@ -149,18 +189,10 @@ func (bot *ArchiverBot) SettingsIntegrationResponse(sc ServerConfig) *discordgo.
 						Label:    getTagValue(sc, "ShowDetails", "pretty"),
 						Style:    globals.ButtonStyle[sc.ShowDetails.Valid && sc.ShowDetails.Bool],
 						CustomID: globals.Details},
-				},
-			},
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
 					discordgo.Button{
 						Label:    getTagValue(sc, "AlwaysArchiveFirst", "pretty"),
 						Style:    globals.ButtonStyle[sc.AlwaysArchiveFirst.Valid && sc.AlwaysArchiveFirst.Bool],
 						CustomID: globals.AlwaysArchiveFirst},
-					discordgo.Button{
-						Label:    getTagValue(sc, "RemoveRetry", "pretty"),
-						Style:    globals.ButtonStyle[sc.RemoveRetry.Valid && sc.RemoveRetry.Bool],
-						CustomID: globals.RemoveRetry},
 				},
 			},
 			discordgo.ActionsRow{
@@ -178,6 +210,24 @@ func (bot *ArchiverBot) SettingsIntegrationResponse(sc ServerConfig) *discordgo.
 						Placeholder: getTagValue(sc, "RemoveRetriesDelay", "pretty"),
 						CustomID:    globals.RemoveRetryAfter,
 						Options:     retryRemoveOptions(sc),
+					},
+				},
+			},
+			discordgo.ActionsRow{
+				Components: []discordgo.MessageComponent{
+					discordgo.SelectMenu{
+						Placeholder: getTagValue(sc, "UTCOffset", "pretty"),
+						CustomID:    globals.UTCOffset,
+						Options:     timeZoneOffset(sc),
+					},
+				},
+			},
+			discordgo.ActionsRow{
+				Components: []discordgo.MessageComponent{
+					discordgo.SelectMenu{
+						Placeholder: getTagValue(sc, "UTCSign", "pretty"),
+						CustomID:    globals.UTCSign,
+						Options:     timeZoneSign(sc),
 					},
 				},
 			},

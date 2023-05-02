@@ -10,8 +10,8 @@ import (
 )
 
 type ServerRegistration struct {
-	DiscordId string `gorm:"primaryKey"`
-	Name      string `gorm:"default:default"`
+	DiscordId string `gorm:"primaryKey,uniqueIndex"`
+	Name      string
 	UpdatedAt time.Time
 	JoinedAt  time.Time
 	Active    sql.NullBool `pretty:"Bot is active in the server" gorm:"default:true"`
@@ -19,14 +19,15 @@ type ServerRegistration struct {
 }
 
 type ServerConfig struct {
-	DiscordId          string        `gorm:"primaryKey" pretty:"Server ID"`
-	Name               string        `pretty:"Server Name" gorm:"default:default"`
-	ArchiveEnabled     sql.NullBool  `pretty:"Bot enabled" gorm:"default:true"`
-	AlwaysArchiveFirst sql.NullBool  `pretty:"Archive the page first (slower)" gorm:"default:false"`
-	ShowDetails        sql.NullBool  `pretty:"Show extra details" gorm:"default:true"`
-	RemoveRetry        sql.NullBool  `pretty:"Remove the retry button automatically" gorm:"default:true"`
-	RetryAttempts      sql.NullInt32 `pretty:"Number of times to retry calling archive.org" gorm:"default:1"`
-	RemoveRetriesDelay sql.NullInt32 `pretty:"Seconds to wait to remove retry button" gorm:"default:30"`
+	DiscordId          string         `gorm:"primaryKey,uniqueIndex" pretty:"Server ID"`
+	Name               string         `pretty:"Server Name" gorm:"default:default"`
+	ArchiveEnabled     sql.NullBool   `pretty:"Bot enabled" gorm:"default:true"`
+	AlwaysArchiveFirst sql.NullBool   `pretty:"Archive the page first (slower)" gorm:"default:false"`
+	ShowDetails        sql.NullBool   `pretty:"Show extra details" gorm:"default:true"`
+	RetryAttempts      sql.NullInt32  `pretty:"Number of times to retry calling archive.org" gorm:"default:1"`
+	RemoveRetriesDelay sql.NullInt32  `pretty:"Seconds to wait to remove retry button" gorm:"default:30"`
+	UTCOffset          sql.NullInt32  `pretty:"UTC Offset" gorm:"default:4"`
+	UTCSign            sql.NullString `pretty:"UTC Sign (Negative if west of Greenwich)" gorm:"default:-"`
 	UpdatedAt          time.Time
 }
 
@@ -43,9 +44,9 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild, delete bool) 
 	var registration ServerRegistration
 	bot.DB.Find(&registration, g.ID)
 	// The server registration does not exist, so we will create with defaults
-	if registration.Name == "default" {
-		log.Info("creating registration for new server: ", g.Name, "(", g.ID, ")")
-		tx := bot.DB.Create(&ServerRegistration{
+	if registration.Name == "" {
+		log.Infof("creating registration for new server: %s(%s)", g.Name, g.ID)
+		registration = ServerRegistration{
 			DiscordId: g.ID,
 			Name:      g.Name,
 			Active:    sql.NullBool{Valid: true, Bool: true},
@@ -54,7 +55,8 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild, delete bool) 
 			Config: ServerConfig{
 				Name: g.Name,
 			},
-		})
+		}
+		tx := bot.DB.Create(&registration)
 
 		// We only expect one server to be updated at a time. Otherwise, return an error
 		if tx.RowsAffected != 1 {
@@ -71,7 +73,7 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild, delete bool) 
 		bot.DB.Model(&ServerRegistration{}).
 			Where(&ServerRegistration{DiscordId: registration.DiscordId}).
 			Updates(&ServerRegistration{Active: status, JoinedAt: g.JoinedAt})
-		bot.updateServersWatched()
+		_ = bot.updateServersWatched()
 	}
 
 	return nil
@@ -145,6 +147,45 @@ func (bot *ArchiverBot) updateServerSetting(guildID string, setting string,
 		return sc, false
 	}
 	return sc, true
+}
+
+// respondToSettingsChoice updates a server setting according to the
+// column name (setting) and the value
+func (bot *ArchiverBot) respondToSettingsChoice(i *discordgo.InteractionCreate,
+	setting string, value interface{}) {
+	guild, err := bot.DG.Guild(i.Interaction.GuildID)
+	if err != nil {
+		log.Errorf("unable to look up guild ID %s", i.Interaction.GuildID)
+		return
+	}
+
+	sc, ok := bot.updateServerSetting(i.Interaction.GuildID, setting, value)
+	var interactionErr error
+
+	bot.createInteractionEvent(InteractionEvent{
+		UserID:        i.Member.User.ID,
+		Username:      i.Member.User.Username,
+		InteractionId: i.Message.ID,
+		ChannelId:     i.Message.ChannelID,
+		ServerID:      i.Interaction.GuildID,
+		ServerName:    guild.Name,
+	})
+
+	if !ok {
+		interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: bot.settingsFailureIntegrationResponse(),
+		})
+	} else {
+		interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: bot.SettingsIntegrationResponse(sc),
+		})
+	}
+
+	if interactionErr != nil {
+		log.Errorf("error responding to settings interaction, err: %v", interactionErr)
+	}
 }
 
 // updateServersWatched updates the servers watched value

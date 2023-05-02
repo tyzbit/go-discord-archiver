@@ -10,12 +10,12 @@ import (
 // requires our attention
 type MessageEvent struct {
 	CreatedAt          time.Time
-	UUID               string `gorm:"primaryKey"`
-	AuthorId           string
+	UUID               string `gorm:"primaryKey,uniqueIndex"`
+	AuthorId           string `gorm:"index"`
 	AuthorUsername     string
 	MessageId          string
 	ChannelId          string
-	ServerID           string
+	ServerID           string `gorm:"index"`
 	ServerName         string
 	ArchiveEventEvents []ArchiveEventEvent `gorm:"foreignKey:UUID"`
 }
@@ -23,12 +23,12 @@ type MessageEvent struct {
 // A InteractionEvent when a user interacts with an Embed
 type InteractionEvent struct {
 	CreatedAt          time.Time
-	UUID               string `gorm:"primaryKey"`
-	UserID             string
+	UUID               string `gorm:"primaryKey,uniqueIndex"`
+	UserID             string `gorm:"index"`
 	Username           string
 	InteractionId      string
 	ChannelId          string
-	ServerID           string
+	ServerID           string `gorm:"index"`
 	ServerName         string
 	ArchiveEventEvents []ArchiveEventEvent `gorm:"foreignKey:UUID"`
 }
@@ -36,12 +36,12 @@ type InteractionEvent struct {
 // Every successful ArchiveEventEvent will come from a message
 type ArchiveEventEvent struct {
 	CreatedAt      time.Time
-	UUID           string `gorm:"primaryKey"`
+	UUID           string `gorm:"primaryKey,uniqueIndex"`
 	AuthorId       string
 	AuthorUsername string
 	ChannelId      string
 	MessageId      string
-	ServerID       string
+	ServerID       string `gorm:"index"`
 	ServerName     string
 	ArchiveEvents  []ArchiveEvent `gorm:"foreignKey:ArchiveEventEventUUID"`
 }
@@ -50,14 +50,14 @@ type ArchiveEventEvent struct {
 // the Archiver API
 type ArchiveEvent struct {
 	CreatedAt             time.Time
-	UUID                  string `gorm:"primaryKey"`
+	UUID                  string `gorm:"primaryKey,uniqueIndex"`
 	ArchiveEventEventUUID string
-	ServerID              string
+	ServerID              string `gorm:"index"`
 	ServerName            string
-	RequestURL            string
-	RequestDomainName     string
-	ResponseURL           string
-	ResponseDomainName    string
+	RequestURL            string `gorm:"index"`
+	RequestDomainName     string `gorm:"index"`
+	ResponseURL           string `gorm:"index"`
+	ResponseDomainName    string `gorm:"index"`
 	Cached                bool
 }
 

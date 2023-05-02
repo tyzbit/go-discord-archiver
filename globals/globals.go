@@ -20,6 +20,9 @@ const (
 	// Integers
 	RetryAttempts    = "retries"
 	RemoveRetryAfter = "removeretryafter"
+	UTCOffset        = "utcoffset"
+	// Strings
+	UTCSign = "utcsign"
 
 	// Colors
 	FrenchGray = 13424349
@@ -51,7 +54,7 @@ var (
 	MaxAllowedRetryAttempts      = 5
 	MaxAllowedRetryAttemptsFloat = float64(MaxAllowedRetryAttempts)
 
-	AllowedRetryAttemptRemovalDelayValues = []int{10, 30, 90, 120, 300}
+	AllowedRetryAttemptRemovalDelayValues = []int{0, 10, 30, 90, 120, 300}
 	// Enabled takes a boolean and returns "enabled" or "disabled"
 	Enabled = map[bool]string{
 		true:  "enabled",

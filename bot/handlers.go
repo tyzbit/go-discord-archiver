@@ -218,7 +218,6 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 		},
 		// Stats does not create an InteractionEvent
 		globals.Stats: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			log.Debug(i.GuildID)
 			directMessage := (i.GuildID == "")
 			var stats botStats
 			logMessage := ""
@@ -298,8 +297,8 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 		},
 		globals.Settings: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			log.Debug("handling settings request")
-			// This is a DM, so settings cannot be changed
 			if i.GuildID == "" {
+				// This is a DM, so settings cannot be changed
 				err := bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: bot.settingsDMFailureIntegrationResponse(),
@@ -309,7 +308,6 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 				}
 				return
 			} else {
-
 				guild, err := bot.DG.Guild(i.Interaction.GuildID)
 				if err != nil {
 					guild.Name = "GuildLookupError"
@@ -424,223 +422,37 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 				}
 			}
 		},
+		// Settings buttons/choices
 		globals.BotEnabled: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			sc := bot.getServerConfig(i.GuildID)
-			var interactionErr error
-
 			inverse := sc.ArchiveEnabled.Valid && !sc.ArchiveEnabled.Bool
-			sc, ok := bot.updateServerSetting(i.GuildID, "archive_enabled", inverse)
-
-			guild, err := bot.DG.Guild(i.Interaction.GuildID)
-			if err != nil {
-				guild.Name = "None"
-			}
-			bot.createInteractionEvent(InteractionEvent{
-				UserID:        i.Member.User.ID,
-				Username:      i.Member.User.Username,
-				InteractionId: i.Message.ID,
-				ChannelId:     i.Message.ChannelID,
-				ServerID:      i.Interaction.GuildID,
-				ServerName:    guild.Name,
-			})
-
-			if i.GuildID == "" {
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.settingsDMFailureIntegrationResponse(),
-				})
-			} else if !ok {
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.settingsFailureIntegrationResponse(),
-				})
-			} else {
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.SettingsIntegrationResponse(sc),
-				})
-			}
-
-			if interactionErr != nil {
-				log.Errorf("error responding to settings interaction, err: %v", interactionErr)
-			}
+			bot.respondToSettingsChoice(i, "archive_enabled", inverse)
 		},
 		globals.Details: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			sc := bot.getServerConfig(i.GuildID)
 			inverse := sc.ShowDetails.Valid && !sc.ShowDetails.Bool
-			var interactionErr error
-			sc, ok := bot.updateServerSetting(i.GuildID, "show_details", inverse)
-
-			guild, err := bot.DG.Guild(i.Interaction.GuildID)
-			if err != nil {
-				guild.Name = "None"
-			}
-			bot.createInteractionEvent(InteractionEvent{
-				UserID:        i.Member.User.ID,
-				Username:      i.Member.User.Username,
-				InteractionId: i.Message.ID,
-				ChannelId:     i.Message.ChannelID,
-				ServerID:      i.Interaction.GuildID,
-				ServerName:    guild.Name,
-			})
-
-			if !ok {
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.settingsFailureIntegrationResponse(),
-				})
-			} else {
-				nc := bot.getServerConfig(i.GuildID)
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.SettingsIntegrationResponse(nc),
-				})
-			}
-
-			if interactionErr != nil {
-				log.Errorf("error responding to settings interaction, err: %v", interactionErr)
-			}
+			bot.respondToSettingsChoice(i, "show_details", inverse)
 		},
 		globals.AlwaysArchiveFirst: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			sc := bot.getServerConfig(i.GuildID)
 			inverse := sc.AlwaysArchiveFirst.Valid && !sc.AlwaysArchiveFirst.Bool
-			var interactionErr error
-			sc, ok := bot.updateServerSetting(i.GuildID, "always_archive_first", inverse)
-
-			guild, err := bot.DG.Guild(i.Interaction.GuildID)
-			if err != nil {
-				guild.Name = "None"
-			}
-			bot.createInteractionEvent(InteractionEvent{
-				UserID:        i.Member.User.ID,
-				Username:      i.Member.User.Username,
-				InteractionId: i.Message.ID,
-				ChannelId:     i.Message.ChannelID,
-				ServerID:      i.Interaction.GuildID,
-				ServerName:    guild.Name,
-			})
-
-			if !ok {
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.settingsFailureIntegrationResponse(),
-				})
-			} else {
-				nc := bot.getServerConfig(i.GuildID)
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.SettingsIntegrationResponse(nc),
-				})
-			}
-
-			if interactionErr != nil {
-				log.Errorf("error responding to settings interaction, err: %v", interactionErr)
-			}
+			bot.respondToSettingsChoice(i, "always_archive_first", inverse)
 		},
-		globals.RemoveRetry: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			sc := bot.getServerConfig(i.GuildID)
-			// If the value isn't valid, the setting should end up disabled
-			inverse := sc.RemoveRetry.Valid && !sc.RemoveRetry.Bool
-			var interactionErr error
-			sc, ok := bot.updateServerSetting(i.GuildID, "remove_retry", inverse)
-
-			guild, err := bot.DG.Guild(i.Interaction.GuildID)
-			if err != nil {
-				guild.Name = "None"
-			}
-			bot.createInteractionEvent(InteractionEvent{
-				UserID:        i.Member.User.ID,
-				Username:      i.Member.User.Username,
-				InteractionId: i.Message.ID,
-				ChannelId:     i.Message.ChannelID,
-				ServerID:      i.Interaction.GuildID,
-				ServerName:    guild.Name,
-			})
-
-			if !ok {
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.settingsFailureIntegrationResponse(),
-				})
-			} else {
-				nc := bot.getServerConfig(i.GuildID)
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.SettingsIntegrationResponse(nc),
-				})
-			}
-
-			if interactionErr != nil {
-				log.Errorf("error responding to settings interaction, err: %v", interactionErr)
-			}
+		globals.UTCOffset: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			mcd := i.MessageComponentData()
+			bot.respondToSettingsChoice(i, "utc_offset", mcd.Values[0])
+		},
+		globals.UTCSign: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			mcd := i.MessageComponentData()
+			bot.respondToSettingsChoice(i, "utc_sign", mcd.Values[0])
 		},
 		globals.RetryAttempts: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			mcd := i.MessageComponentData()
-			sc, ok := bot.updateServerSetting(i.GuildID, "retry_attempts", mcd.Values[0])
-			var interactionErr error
-
-			guild, err := bot.DG.Guild(i.Interaction.GuildID)
-			if err != nil {
-				guild.Name = "None"
-			}
-			bot.createInteractionEvent(InteractionEvent{
-				UserID:        i.Member.User.ID,
-				Username:      i.Member.User.Username,
-				InteractionId: i.Message.ID,
-				ChannelId:     i.Message.ChannelID,
-				ServerID:      i.Interaction.GuildID,
-				ServerName:    guild.Name,
-			})
-
-			if !ok {
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.settingsFailureIntegrationResponse(),
-				})
-			} else {
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.SettingsIntegrationResponse(sc),
-				})
-			}
-
-			if interactionErr != nil {
-				log.Errorf("error responding to settings interaction, err: %v", interactionErr)
-			}
+			bot.respondToSettingsChoice(i, "retry_attempts", mcd.Values[0])
 		},
 		globals.RemoveRetryAfter: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			mcd := i.MessageComponentData()
-			sc, ok := bot.updateServerSetting(i.GuildID, "remove_retries_delay", mcd.Values[0])
-			var interactionErr error
-
-			guild, err := bot.DG.Guild(i.Interaction.GuildID)
-			if err != nil {
-				guild.Name = "None"
-			}
-			bot.createInteractionEvent(InteractionEvent{
-				UserID:        i.Member.User.ID,
-				Username:      i.Member.User.Username,
-				InteractionId: i.Message.ID,
-				ChannelId:     i.Message.ChannelID,
-				ServerID:      i.Interaction.GuildID,
-				ServerName:    guild.Name,
-			})
-
-			if !ok {
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.settingsFailureIntegrationResponse(),
-				})
-			} else {
-				interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseUpdateMessage,
-					Data: bot.SettingsIntegrationResponse(sc),
-				})
-			}
-
-			if interactionErr != nil {
-				log.Errorf("error responding to settings interaction, err: %v", interactionErr)
-			}
+			bot.respondToSettingsChoice(i, "remove_retries_delay", mcd.Values[0])
 		},
 	}
 

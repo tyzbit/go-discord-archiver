@@ -83,33 +83,37 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild, delete bool) 
 // updates the DB as to whether or not it's active
 func (bot *ArchiverBot) updateInactiveRegistrations(activeGuilds []*discordgo.Guild) {
 	var sr []ServerRegistration
-	bot.DB.Model([]ServerRegistration{}).Find(&sr)
+	var inactiveRegistrations []string
+	bot.DB.Find(&sr)
 
 	// Check all registrations for whether or not the server is active
 	for _, reg := range sr {
-		var status sql.NullBool
-		var joinedAt time.Time
-		// If there is no guild in r.Guilds, then we havea config
-		// for a server we're not in anymore
-		status = sql.NullBool{Valid: true, Bool: false}
+		active := false
 		for _, g := range activeGuilds {
 			if g.ID == reg.DiscordId {
-				status = sql.NullBool{Valid: true, Bool: true}
-				joinedAt = g.JoinedAt
+				active = true
+				break
 			}
 		}
 
-		// Now the registration is accurate, update the DB if needed
-		if reg.Active != status || reg.JoinedAt.IsZero() {
-			reg.Active = status
-			reg.JoinedAt = joinedAt
-			tx := bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{DiscordId: reg.DiscordId}).
-				Updates(reg)
+		// If the server isn't found in activeGuilds, then we have a config
+		// for a server we're not in anymore
+		if !active {
+			inactiveRegistrations = append(inactiveRegistrations, reg.DiscordId)
+		}
+	}
 
-			if tx.RowsAffected != 1 {
-				log.Errorf("unexpected number of rows affected updating server registration, id: %s, rows updated: %v",
-					reg.DiscordId, tx.RowsAffected)
-			}
+	// Since active servers will set Active to true, we will
+	// set the rest of the servers as inactive.
+	registrations := int64(len(inactiveRegistrations))
+	if registrations > 0 {
+		tx := bot.DB.Model(&ServerRegistration{}).Where(inactiveRegistrations).
+			Updates(&ServerRegistration{Active: sql.NullBool{Valid: true, Bool: false}})
+
+		if tx.RowsAffected != registrations {
+			log.Errorf("unexpected number of rows affected updating %v inactive "+
+				"server registrations, rows updated: %v",
+				registrations, tx.RowsAffected)
 		}
 	}
 }
@@ -137,16 +141,14 @@ func (bot *ArchiverBot) updateServerSetting(guildID string, setting string,
 	tx := bot.DB.Model(&ServerConfig{}).Where(&ServerConfig{DiscordId: guild.ID}).
 		Update(setting, value)
 
-	// Now we get the current server config and return it
-	sc = bot.getServerConfig(guildID)
-
+	ok := true
 	// We only expect one server to be updated at a time. Otherwise, return an error
 	if tx.RowsAffected != 1 {
 		log.Errorf("did not expect %v rows to be affected updating "+
 			"server config for server: %v(%v)", fmt.Sprintf("%v", tx.RowsAffected), guild.Name, guild.ID)
-		return sc, false
+		ok = false
 	}
-	return sc, true
+	return bot.getServerConfig(guildID), ok
 }
 
 // respondToSettingsChoice updates a server setting according to the

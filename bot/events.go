@@ -10,7 +10,7 @@ import (
 // requires our attention
 type MessageEvent struct {
 	CreatedAt          time.Time
-	UUID               string `gorm:"primaryKey,uniqueIndex"`
+	UUID               string `gorm:"primaryKey" gorm:"uniqueIndex"`
 	AuthorId           string `gorm:"index"`
 	AuthorUsername     string
 	MessageId          string
@@ -23,7 +23,7 @@ type MessageEvent struct {
 // A InteractionEvent when a user interacts with an Embed
 type InteractionEvent struct {
 	CreatedAt          time.Time
-	UUID               string `gorm:"primaryKey,uniqueIndex"`
+	UUID               string `gorm:"primaryKey" gorm:"uniqueIndex"`
 	UserID             string `gorm:"index"`
 	Username           string
 	InteractionId      string
@@ -36,7 +36,7 @@ type InteractionEvent struct {
 // Every successful ArchiveEventEvent will come from a message
 type ArchiveEventEvent struct {
 	CreatedAt      time.Time
-	UUID           string `gorm:"primaryKey,uniqueIndex"`
+	UUID           string `gorm:"primaryKey;uniqueIndex"`
 	AuthorId       string
 	AuthorUsername string
 	ChannelId      string
@@ -50,13 +50,13 @@ type ArchiveEventEvent struct {
 // the Archiver API
 type ArchiveEvent struct {
 	CreatedAt             time.Time
-	UUID                  string `gorm:"primaryKey,uniqueIndex"`
+	UUID                  string `gorm:"primaryKey;uniqueIndex"`
 	ArchiveEventEventUUID string
 	ServerID              string `gorm:"index"`
 	ServerName            string
-	RequestURL            string `gorm:"index"`
+	RequestURL            string
 	RequestDomainName     string `gorm:"index"`
-	ResponseURL           string `gorm:"index"`
+	ResponseURL           string
 	ResponseDomainName    string `gorm:"index"`
 	Cached                bool
 }

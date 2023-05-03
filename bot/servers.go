@@ -10,7 +10,7 @@ import (
 )
 
 type ServerRegistration struct {
-	DiscordId string `gorm:"primaryKey,uniqueIndex"`
+	DiscordId string `gorm:"primaryKey;uniqueIndex"`
 	Name      string
 	UpdatedAt time.Time
 	JoinedAt  time.Time
@@ -19,7 +19,7 @@ type ServerRegistration struct {
 }
 
 type ServerConfig struct {
-	DiscordId          string         `gorm:"primaryKey,uniqueIndex" pretty:"Server ID"`
+	DiscordId          string         `gorm:"primaryKey;uniqueIndex" pretty:"Server ID"`
 	Name               string         `pretty:"Server Name" gorm:"default:default"`
 	ArchiveEnabled     sql.NullBool   `pretty:"Bot enabled" gorm:"default:true"`
 	AlwaysArchiveFirst sql.NullBool   `pretty:"Archive the page first (slower)" gorm:"default:false"`
@@ -83,7 +83,7 @@ func (bot *ArchiverBot) registerOrUpdateServer(g *discordgo.Guild, delete bool) 
 // updates the DB as to whether or not it's active
 func (bot *ArchiverBot) updateInactiveRegistrations(activeGuilds []*discordgo.Guild) {
 	var sr []ServerRegistration
-	bot.DB.Find(&sr)
+	bot.DB.Model([]ServerRegistration{}).Find(&sr)
 
 	// Check all registrations for whether or not the server is active
 	for _, reg := range sr {

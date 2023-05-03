@@ -12,7 +12,7 @@ Otherwise, it will save stats to a local sqlite database at `/var/go-discord-arc
 | Variable          | Value(s)                                                                               |
 | :---------------- | :------------------------------------------------------------------------------------- |
 | ADMINISTRATOR_IDS | Comma separated IDs of users allowed to use administrator commands                     |
-| DB_DATABASE       | Database name for database                                                             |
+| DB_NAME           | Database name for database                                                             |
 | DB_HOST           | Hostname for database                                                                  |
 | DB_PASSWORD       | Password for database user                                                             |
 | DB_USER           | Username for database user                                                             |

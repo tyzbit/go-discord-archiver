@@ -84,7 +84,7 @@ func (bot *ArchiverBot) removeRetryButtonAfterSleep(message *discordgo.Message) 
 		Channel:    message.ChannelID,
 	}
 
-	log.Debugf("removing reply button (waited %vs) for message ID %s in channel %s, guild: %s(%s)",
+	log.Debugf("removing retry button (waited %vs) for message ID %s in channel %s, guild: %s(%s)",
 		sleep, message.ID, message.ChannelID, guild.Name, guild.ID)
 	_, err := bot.DG.ChannelMessageEditComplex(&me)
 	if err != nil {

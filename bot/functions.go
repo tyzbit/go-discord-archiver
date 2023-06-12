@@ -280,21 +280,21 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 			Components: components,
 		}
 		replies = append(replies, reply)
+	}
 
-		// Create a call to Archiver API event
-		tx := bot.DB.Create(&ArchiveEventEvent{
-			UUID:           archiveEventUUID,
-			AuthorId:       message.Author.ID,
-			AuthorUsername: message.Author.Username,
-			ChannelId:      message.ChannelID,
-			MessageId:      message.ID,
-			ServerID:       guild.ID,
-			ArchiveEvents:  archives,
-		})
+	// Create a call to Archiver API event
+	tx := bot.DB.Create(&ArchiveEventEvent{
+		UUID:           archiveEventUUID,
+		AuthorId:       message.Author.ID,
+		AuthorUsername: message.Author.Username,
+		ChannelId:      message.ChannelID,
+		MessageId:      message.ID,
+		ServerID:       guild.ID,
+		ArchiveEvents:  archives,
+	})
 
-		if tx.RowsAffected != 1 {
-			errs = append(errs, fmt.Errorf("unexpected number of rows affected inserting archive event: %v", tx.RowsAffected))
-		}
+	if tx.RowsAffected != 1 {
+		errs = append(errs, fmt.Errorf("unexpected number of rows affected inserting archive event: %v", tx.RowsAffected))
 	}
 
 	typingStop <- true

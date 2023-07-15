@@ -43,12 +43,13 @@ func (bot *ArchiverBot) sendArchiveResponse(message *discordgo.Message, embed *d
 		},
 	}
 
-	message, err = bot.DG.ChannelMessageSendComplex(message.ChannelID, send)
-	go bot.removeRetryButtonAfterSleep(message)
-
+	_, err = bot.DG.ChannelMessageSendComplex(message.ChannelID, send)
 	if err != nil {
 		log.Errorf("problem sending message: %v", err)
+		return err
 	}
+
+	go bot.removeRetryButtonAfterSleep(message)
 	return nil
 }
 

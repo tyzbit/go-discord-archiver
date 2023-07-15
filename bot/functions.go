@@ -21,12 +21,11 @@ const (
 	originalURLSearch string = ".*(http.*)"
 )
 
-// handleArchiveRequest takes a Discord session and a message string and
+// handleArchiveRequest takes a Discord session and a message reaction and
 // calls go-archiver with a []string of URLs parsed from the message
 // It then sends an embed with the resulting archived URLs
-// TODO: break out into more functions?
 func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, newSnapshot bool) (
-	replies []*discordgo.MessageSend, errs []error) {
+	embeds []*discordgo.MessageEmbed, errs []error) {
 
 	typingStop := make(chan bool, 1)
 	go bot.typeInChannel(typingStop, r.ChannelID)
@@ -34,36 +33,35 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 	// If true, this is a DM
 	if r.GuildID == "" {
 		typingStop <- true
-		replies = []*discordgo.MessageSend{
+		return []*discordgo.MessageEmbed{
 			{
-				Content: "The bot must be added to a server.",
+				Description: "Use `/archive` instead of adding a reaction to a message.",
 			},
-		}
-		return replies, errs
+		}, errs
 	}
 
 	sc := bot.getServerConfig(r.GuildID)
 	if sc.ArchiveEnabled.Valid && !sc.ArchiveEnabled.Bool {
 		log.Info("URLs were not archived because automatic archive is not enabled")
 		typingStop <- true
-		return replies, errs
+		return embeds, errs
 	}
 
 	// Do a lookup for the full guild object
 	guild, gErr := bot.DG.Guild(r.GuildID)
 	if gErr != nil {
 		typingStop <- true
-		return replies, []error{fmt.Errorf("unable to look up server by id: %v", r.GuildID)}
+		return embeds, []error{fmt.Errorf("unable to look up server by id: %v", r.GuildID)}
 	}
 
 	message, err := bot.DG.ChannelMessage(r.ChannelID, r.MessageID)
 	if err != nil {
 		typingStop <- true
-		return replies, []error{fmt.Errorf("unable to look up message by id: %v", r.MessageID)}
+		return embeds, []error{fmt.Errorf("unable to look up message by id: %v", r.MessageID)}
 	}
 
-	var messageUrls []string
 	originalUrl := message.Content
+	var messageUrls []string
 	if originalUrl == "" {
 		// If this was originally an already-sent embed, we have to get the
 		// original URL back. Luckily the real actual URL is regexable
@@ -73,29 +71,164 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 		// If the URL still has 'web.archive.org', then we failed to ge the original URL
 		fail, _ := regexp.MatchString(archiveDomain, originalUrl)
 		if fail {
-			return replies, errs
+			return embeds, errs
 		}
 
 		// The suffix turned out to be a real URL
 		messageUrls = []string{archiveUrlSuffix}
 	} else {
-		xurlsStrict := xurls.Strict
-		messageUrls = xurlsStrict.FindAllString(originalUrl, -1)
+		messageUrls, errs = bot.extractMessageUrls(message.Content)
+		for index, err := range errs {
+			if err != nil {
+				log.Errorf("unable to extract message url: %s, err: %w", messageUrls[index], err)
+			}
+		}
 	}
+
+	archives, errs := bot.populateArchiveEventCache(messageUrls, newSnapshot, *guild)
+	for _, err := range errs {
+		if err != nil {
+			log.Errorf("error populating archive cache: %w", err)
+		}
+	}
+
+	archivedLinks, errs := bot.executeArchiveEventRequest(&archives, sc, newSnapshot)
+	for _, err := range errs {
+		if err != nil {
+			log.Errorf("error populating archive cache: %w", err)
+		}
+	}
+
+	if len(archivedLinks) < len(messageUrls) {
+		log.Errorf("did not receive the same number of archived links as submitted URLs")
+		if len(archivedLinks) == 0 {
+			log.Errorf("did not receive any Archive.org links")
+			archivedLinks = []string{"I was unable to get any Wayback Machine URLs. " +
+				"Most of the time, this is " +
+				"due to rate-limiting by Archive.org. " +
+				"Please try again"}
+		}
+	}
+
+	embeds, errs = bot.buildArchiveReply(archivedLinks, messageUrls, sc)
+
+	// Create a call to Archiver API event
+	tx := bot.DB.Create(&ArchiveEventEvent{
+		UUID:           archives[0].ArchiveEventEventUUID,
+		AuthorId:       message.Author.ID,
+		AuthorUsername: message.Author.Username,
+		ChannelId:      message.ChannelID,
+		MessageId:      message.ID,
+		ServerID:       guild.ID,
+		ArchiveEvents:  archives,
+	})
+
+	if tx.RowsAffected != 1 {
+		errs = append(errs, fmt.Errorf("unexpected number of rows affected inserting archive event: %v", tx.RowsAffected))
+	}
+
+	typingStop <- true
+	return embeds, errs
+}
+
+// handleArchiveCommand takes a discordgo.InteractionCreate and
+// calls go-archiver with a []string of URLs parsed from the message
+// It then sends an embed with the resulting archived URLs
+func (bot *ArchiverBot) handleArchiveCommand(i *discordgo.InteractionCreate) (
+	embeds []*discordgo.MessageEmbed, errs []error) {
+
+	message := &discordgo.Message{}
+	var archives []ArchiveEvent
+	commandInput := i.Interaction.ApplicationCommandData()
+	if len(commandInput.Options) > 1 {
+		embeds = append(embeds, &discordgo.MessageEmbed{
+			Title: "Too many options submitted",
+		})
+	} else {
+		messageUrls, errs := bot.extractMessageUrls(commandInput.Options[0].StringValue())
+		for index, err := range errs {
+			if err != nil {
+				log.Errorf("unable to extract message url: %s, err: %w", messageUrls[index], err)
+			}
+		}
+
+		archives, errs := bot.populateArchiveEventCache(messageUrls, true, discordgo.Guild{ID: "", Name: "ArchiveCommand"})
+		for _, err := range errs {
+			if err != nil {
+				log.Error("error populating archive cache: ", err)
+			}
+		}
+
+		sc := bot.getServerConfig(i.GuildID)
+
+		archivedLinks, errs := bot.executeArchiveEventRequest(&archives, sc,
+			true)
+		for _, err := range errs {
+			if err != nil {
+				log.Error("error populating archive cache: ", err)
+			}
+		}
+
+		if len(archivedLinks) < len(messageUrls) {
+			log.Errorf("did not receive the same number of archived links as submitted URLs")
+			if len(archivedLinks) == 0 {
+				log.Errorf("did not receive any Archive.org links")
+				archivedLinks = []string{"I was unable to get any Wayback Machine URLs. " +
+					"Most of the time, this is " +
+					"due to rate-limiting by Archive.org. " +
+					"Please try again"}
+			}
+		}
+
+		embeds, errs = bot.buildArchiveReply(archivedLinks, messageUrls, sc)
+
+		for _, err := range errs {
+			if err != nil {
+				log.Error("error building archive reply: ", err)
+			}
+		}
+	}
+
+	// Don't create an event if there were no archives
+	if len(archives) > 0 {
+		// Create a call to Archiver API event
+		tx := bot.DB.Create(&ArchiveEventEvent{
+			UUID:           archives[0].ArchiveEventEventUUID,
+			AuthorId:       message.Author.ID,
+			AuthorUsername: message.Author.Username,
+			ChannelId:      message.ChannelID,
+			MessageId:      message.ID,
+			ServerID:       "DirectMessage",
+			ArchiveEvents:  archives,
+		})
+
+		if tx.RowsAffected != 1 {
+			errs = append(errs, fmt.Errorf("unexpected number of rows affected inserting archive event: %v", tx.RowsAffected))
+		}
+	}
+
+	return embeds, errs
+}
+
+// extractMessageUrls takes a string and returns a slice of URLs parsed from the string
+func (bot *ArchiverBot) extractMessageUrls(message string) (messageUrls []string, errs []error) {
+	xurlsStrict := xurls.Strict
+	messageUrls = xurlsStrict.FindAllString(message, -1)
 
 	if len(messageUrls) == 0 {
 		errs = append(errs, fmt.Errorf("found 0 URLs in message"))
-		typingStop <- true
-		return replies, errs
 	}
 
 	log.Debug("URLs parsed from message: ", strings.Join(messageUrls, ", "))
+	return messageUrls, errs
+}
 
+// populateArchiveCache takes an slice of messageUrls and returns a slice of ArchiveEvents
+func (bot *ArchiverBot) populateArchiveEventCache(messageUrls []string, newSnapshot bool, guild discordgo.Guild) (archives []ArchiveEvent, errs []error) {
 	// This UUID will be used to tie together the ArchiveEventEvent,
 	// the archiveRequestUrls and the archiveResponseUrls
 	archiveEventUUID := uuid.New().String()
 
-	var archives []ArchiveEvent
 	for _, url := range messageUrls {
 		domainName, err := getDomainName(url)
 		if err != nil {
@@ -146,9 +279,12 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 			Cached:                false,
 		})
 	}
+	return archives, errs
+}
 
-	var archivedLinks []string
-	for i, archive := range archives {
+// executeArchiveRequest takes a slice of ArchiveEvents and returns a slice of strings of successfully archived links
+func (bot *ArchiverBot) executeArchiveEventRequest(archiveEvents *[]ArchiveEvent, sc ServerConfig, newSnapshot bool) (archivedLinks []string, errs []error) {
+	for i, archive := range *archiveEvents {
 		if archive.ResponseURL == "" {
 			log.Debug("need to call archive.org api for ", archive.RequestURL)
 
@@ -165,12 +301,12 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 				if err != nil {
 					log.Errorf("unable to get domain name for url: %v", archive.ResponseURL)
 				}
-				archives[i].ResponseDomainName = domainName
+				(*archiveEvents)[i].ResponseDomainName = domainName
 			} else {
 				log.Info("could not get latest archive.org url for url: ", url)
 			}
 
-			archives[i].ResponseURL = url
+			(*archiveEvents)[i].ResponseURL = url
 			archivedLinks = append(archivedLinks, url)
 		} else {
 			// We have a response URL, so add that to the links to be used
@@ -178,18 +314,11 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 			archivedLinks = append(archivedLinks, archive.ResponseURL)
 		}
 	}
+	return archivedLinks, errs
+}
 
-	if len(archivedLinks) < len(messageUrls) {
-		log.Errorf("did not receive the same number of archived links as submitted URLs")
-		if len(archivedLinks) == 0 {
-			log.Errorf("did not receive any Archive.org links")
-			archivedLinks = []string{"I was unable to get any Wayback Machine URLs. " +
-				"Most of the time, this is " +
-				"due to rate-limiting by Archive.org. " +
-				"Please try again"}
-		}
-	}
-
+// executeArchiveRequest takes a slice of ArchiveEvents and returns a slice of strings of successfully archived links
+func (bot *ArchiverBot) buildArchiveReply(archivedLinks []string, messageUrls []string, sc ServerConfig) (embeds []*discordgo.MessageEmbed, errs []error) {
 	for i := 0; i < len(archivedLinks); i++ {
 		originalUrl := messageUrls[i]
 		link := archivedLinks[i]
@@ -215,23 +344,10 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 			}
 		}
 
-		embeds := []*discordgo.MessageEmbed{
-			{
-				Title:       "🏛️ Archive.org Snapshot",
-				Description: link,
-				Color:       globals.FrenchGray,
-			},
-		}
-
-		components := []discordgo.MessageComponent{
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
-					discordgo.Button{
-						Label:    "Request new snapshot",
-						Style:    discordgo.PrimaryButton,
-						CustomID: globals.Retry},
-				},
-			},
+		embed := discordgo.MessageEmbed{
+			Title:       "🏛️ Archive.org Snapshot",
+			Description: link,
+			Color:       globals.FrenchGray,
 		}
 
 		if link != "" {
@@ -249,7 +365,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 					"+": 1,
 				}
 				location := time.FixedZone("UTC", sign[sc.UTCSign.String]*int(sc.UTCOffset.Int32)*60*60)
-				embeds[0].Fields = []*discordgo.MessageEmbedField{
+				embed.Fields = []*discordgo.MessageEmbedField{
 					{
 						Name: "Oldest Archived Copy",
 						Value: fmt.Sprintf("[%s](%s/%s/%s)",
@@ -270,33 +386,12 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 					},
 				}
 			}
-			embeds[0].Footer = &discordgo.MessageEmbedFooter{
+			embed.Footer = &discordgo.MessageEmbedFooter{
 				Text: "⚙️ Customize this message with /settings",
 			}
 		}
-
-		reply := &discordgo.MessageSend{
-			Embeds:     embeds,
-			Components: components,
-		}
-		replies = append(replies, reply)
+		embeds = append(embeds, &embed)
 	}
 
-	// Create a call to Archiver API event
-	tx := bot.DB.Create(&ArchiveEventEvent{
-		UUID:           archiveEventUUID,
-		AuthorId:       message.Author.ID,
-		AuthorUsername: message.Author.Username,
-		ChannelId:      message.ChannelID,
-		MessageId:      message.ID,
-		ServerID:       guild.ID,
-		ArchiveEvents:  archives,
-	})
-
-	if tx.RowsAffected != 1 {
-		errs = append(errs, fmt.Errorf("unexpected number of rows affected inserting archive event: %v", tx.RowsAffected))
-	}
-
-	typingStop <- true
-	return replies, errs
+	return embeds, errs
 }

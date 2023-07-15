@@ -10,7 +10,7 @@ import (
 )
 
 // sendArchiveResponse sends the message with a result from archive.org
-func (bot *ArchiverBot) sendArchiveResponse(message *discordgo.Message, reply *discordgo.MessageSend) error {
+func (bot *ArchiverBot) sendArchiveResponse(message *discordgo.Message, embed *discordgo.MessageEmbed) error {
 	username := ""
 	user, err := bot.DG.User(message.Member.User.ID)
 	if err != nil {
@@ -27,22 +27,70 @@ func (bot *ArchiverBot) sendArchiveResponse(message *discordgo.Message, reply *d
 			return gErr
 		}
 		bot.createMessageEvent(MessageEvent{
-			AuthorId:       message.Member.User.ID,
-			AuthorUsername: message.Member.User.Username,
+			AuthorId:       user.ID,
+			AuthorUsername: user.Username,
 			MessageId:      message.ID,
 			ChannelId:      message.ChannelID,
 			ServerID:       message.GuildID,
 		})
 		log.Debugf("sending archive message response in %s(%s), calling user: %s(%s)",
 			guild.Name, guild.ID, username, message.Member.User.ID)
-
-		message, err = bot.DG.ChannelMessageSendComplex(message.ChannelID, reply)
-		message.GuildID = guild.ID
-		go bot.removeRetryButtonAfterSleep(message)
-	} else {
-		log.Debugf("declining archive message response (no guild ID), calling user: %s(%s)",
-			username, message.Member.User.ID)
 	}
+
+	send := &discordgo.MessageSend{
+		Embeds: []*discordgo.MessageEmbed{
+			embed,
+		},
+	}
+
+	message, err = bot.DG.ChannelMessageSendComplex(message.ChannelID, send)
+	go bot.removeRetryButtonAfterSleep(message)
+
+	if err != nil {
+		log.Errorf("problem sending message: %v", err)
+	}
+	return nil
+}
+
+// sendArchiveResponse sends the message with a result from archive.org
+func (bot *ArchiverBot) sendArchiveCommandResponse(i *discordgo.Interaction, embed *discordgo.MessageEmbed) error {
+	username := ""
+	var user *discordgo.User
+	var err error
+	if i.User != nil {
+		user, err = bot.DG.User(i.User.ID)
+	} else {
+		user, err = bot.DG.User(i.Member.User.ID)
+	}
+	if err != nil {
+		log.Errorf("unable to look up user with ID %v, err: %v", i.User.ID, err)
+		username = "unknown"
+	} else {
+		username = user.Username
+	}
+
+	if i.GuildID != "" {
+		// Do a lookup for the full guild object
+		guild, gErr := bot.DG.Guild(i.GuildID)
+		if gErr != nil {
+			return gErr
+		}
+		bot.createMessageEvent(MessageEvent{
+			AuthorId:       user.ID,
+			AuthorUsername: user.Username,
+			MessageId:      i.ID,
+			ChannelId:      i.ChannelID,
+			ServerID:       i.GuildID,
+		})
+		log.Debugf("sending archive message response in %s(%s), calling user: %s(%s)",
+			guild.Name, guild.ID, username, user.ID)
+	}
+
+	_, err = bot.DG.InteractionResponseEdit(i, &discordgo.WebhookEdit{
+		Embeds: []*discordgo.MessageEmbed{
+			embed,
+		},
+	})
 
 	if err != nil {
 		log.Errorf("problem sending message: %v", err)
@@ -51,10 +99,15 @@ func (bot *ArchiverBot) sendArchiveResponse(message *discordgo.Message, reply *d
 }
 
 func (bot *ArchiverBot) removeRetryButtonAfterSleep(message *discordgo.Message) {
-	guild, gErr := bot.DG.Guild(message.GuildID)
+	var guild *discordgo.Guild
+	var gErr error
+	guild, gErr = bot.DG.Guild(message.GuildID)
 	if gErr != nil {
 		log.Errorf("unable to look up server by id: %v", message.GuildID)
-
+		message.GuildID = ""
+		guild = &discordgo.Guild{
+			Name: "GuildLookupError",
+		}
 	}
 
 	sc := bot.getServerConfig(guild.ID)
@@ -85,7 +138,7 @@ func (bot *ArchiverBot) removeRetryButtonAfterSleep(message *discordgo.Message) 
 	}
 
 	log.Debugf("removing retry button (waited %vs) for message ID %s in channel %s, guild: %s(%s)",
-		sleep, message.ID, message.ChannelID, guild.Name, guild.ID)
+		sleep, message.ID, message.ChannelID, sc.Name, sc.DiscordId)
 	_, err := bot.DG.ChannelMessageEditComplex(&me)
 	if err != nil {
 		log.Errorf("unable to remove retry button on message id %v, server: %s(%s): %v, ",

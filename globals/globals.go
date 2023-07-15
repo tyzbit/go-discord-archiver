@@ -9,6 +9,7 @@ const (
 	// Commands
 	Stats    = "stats"
 	Settings = "settings"
+	Archive  = "archive"
 	Help     = "help"
 
 	// Bot settings unique handler names
@@ -38,6 +39,9 @@ const (
 
 Configure the bot with slash commands:
 ` + "`/settings`" + `
+
+Get a snapshot for one URL privately (even in public channels):
+` + "`/archive`" + `
 
 Get stats for the bot:
 ` + "`/stats`" + `
@@ -70,6 +74,19 @@ var (
 		{
 			Name:        Help,
 			Description: "How to use this bot",
+		},
+		{
+			Name:        Archive,
+			Description: "Archive a URL directly and privately",
+			Type:        discordgo.ChatApplicationCommand,
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:        "url",
+					Description: "URL to get a Wayback Machine snapshot for",
+					Type:        discordgo.ApplicationCommandOptionString,
+					Required:    true,
+				},
+			},
 		},
 		{
 			Name:        Stats,

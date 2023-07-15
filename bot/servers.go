@@ -121,7 +121,19 @@ func (bot *ArchiverBot) updateInactiveRegistrations(activeGuilds []*discordgo.Gu
 // getServerConfig takes a guild ID and returns a ServerConfig object for that server
 // If the config isn't found, it returns a default config
 func (bot *ArchiverBot) getServerConfig(guildId string) ServerConfig {
-	sc := ServerConfig{}
+	// Default server config in case guild lookup fails, these are used for DMs
+	sc := ServerConfig{
+		DiscordId:          "",
+		Name:               "",
+		ArchiveEnabled:     sql.NullBool{Bool: true, Valid: true},
+		AlwaysArchiveFirst: sql.NullBool{Bool: false, Valid: true},
+		ShowDetails:        sql.NullBool{Bool: true, Valid: true},
+		RetryAttempts:      sql.NullInt32{Int32: 1, Valid: true},
+		RemoveRetriesDelay: sql.NullInt32{Int32: 30, Valid: true},
+		UTCOffset:          sql.NullInt32{Int32: 4, Valid: true},
+		UTCSign:            sql.NullString{String: "-", Valid: true},
+		UpdatedAt:          time.Now(),
+	}
 	// If this fails, we'll return a default server
 	// config, which is expected
 	bot.DB.Where(&ServerConfig{DiscordId: guildId}).Find(&sc)

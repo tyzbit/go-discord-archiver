@@ -25,8 +25,14 @@ Otherwise, it will save stats to a local sqlite database at `/var/go-discord-arc
 Configure the bot with slash commands:
 `/settings`
 
+Get a snapshot for one URL privately (even in public channels):
+`/archive`
+
 Get stats for the bot:
 `/stats`
+
+Get help for the bot:
+`/help`
 
 ## Development
 

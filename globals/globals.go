@@ -35,7 +35,7 @@ const (
 	// Shown to the user when `/help` is called
 	BotHelpText = `**Usage**
 	React to a message that has links with 🏛 (The "classical building" emoji) and the bot will respond in the channel with an archive.org link for the link(s). It saves the page to archive.org if needed. 
-You can also right-click (or long press) a message and use "Get snapshots" to get a message with snapshots for any link that only you can see.
+You can also right-click (or long press) a message and use "Get snapshots" to get a message with snapshots that only you can see.
 
 **This is a pretty good way to get around paywalls to read articles for free.**
 

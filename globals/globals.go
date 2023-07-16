@@ -41,15 +41,19 @@ const (
 **This is a pretty good way to get around paywalls to read articles for free.**
 
 Configure the bot:
+
 ` + "`/settings`" + `
 
 Get a snapshot for one URL in a message visible only to you:
+
 ` + "`/archive`" + `
 
 Get stats for the bot:
+
 ` + "`/stats`" + `
 
 Get this help message:
+
 ` + "`/help`"
 	BotHelpFooterText = "It can take up to a few minutes for archive.org to save a page, so if you don't get a link immediately, please be patient."
 )

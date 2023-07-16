@@ -28,7 +28,7 @@ Configure the bot with slash commands:
 Get a snapshot for one URL in a message visible only to you:
 `/archive`
 
-You can also right-click (or long press) a message and use "Get snapshots" to get a message with snapshots for any link that only you can see.
+You can also right-click (or long press) a message and use "Get snapshot" to get a message with snapshots for any link that only you can see.
 
 Get stats for the bot:
 `/stats`

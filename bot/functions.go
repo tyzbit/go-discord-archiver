@@ -35,7 +35,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 		typingStop <- true
 		return []*discordgo.MessageEmbed{
 			{
-				Description: "Use `/archive` or the `Get snapshots` menu item on the message instead of adding a reaction.",
+				Description: "Use `/archive` or the `Get snapshot` menu item on the message instead of adding a reaction.",
 			},
 		}, errs
 	}

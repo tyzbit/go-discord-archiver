@@ -42,7 +42,7 @@ You can also right-click (or long press) a message and use "Get snapshots" to ge
 Configure the bot with slash commands:
 ` + "`/settings`" + `
 
-Get a snapshot for one URL privately (even in public channels):
+Get a snapshot for one URL in a message visible only to you:
 ` + "`/archive`" + `
 
 Get stats for the bot:

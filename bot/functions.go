@@ -22,8 +22,8 @@ const (
 )
 
 // handleArchiveRequest takes a Discord session and a message reaction and
-// calls go-archiver with a []string of URLs parsed from the message
-// It then sends an embed with the resulting archived URLs
+// calls go-archiver with a []string of URLs parsed from the message.
+// It then returns an embed with the resulting archived URLs,
 func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, newSnapshot bool) (
 	embeds []*discordgo.MessageEmbed, errs []error) {
 
@@ -35,7 +35,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 		typingStop <- true
 		return []*discordgo.MessageEmbed{
 			{
-				Description: "Use `/archive` instead of adding a reaction to a message.",
+				Description: "Use `/archive` or the `Get snapshots` menu item on the message instead of adding a reaction.",
 			},
 		}, errs
 	}
@@ -132,8 +132,8 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 }
 
 // handleArchiveCommand takes a discordgo.InteractionCreate and
-// calls go-archiver with a []string of URLs parsed from the message
-// It then sends an embed with the resulting archived URLs
+// calls go-archiver with a []string of URLs parsed from the message.
+// It then returns an embed with the resulting archived URLs,
 func (bot *ArchiverBot) handleArchiveCommand(i *discordgo.InteractionCreate) (
 	embeds []*discordgo.MessageEmbed, errs []error) {
 
@@ -185,6 +185,87 @@ func (bot *ArchiverBot) handleArchiveCommand(i *discordgo.InteractionCreate) (
 		for _, err := range errs {
 			if err != nil {
 				log.Error("error building archive reply: ", err)
+			}
+		}
+	}
+
+	// Don't create an event if there were no archives
+	if len(archives) > 0 {
+		// Create a call to Archiver API event
+		tx := bot.DB.Create(&ArchiveEventEvent{
+			UUID:           archives[0].ArchiveEventEventUUID,
+			AuthorId:       message.Author.ID,
+			AuthorUsername: message.Author.Username,
+			ChannelId:      message.ChannelID,
+			MessageId:      message.ID,
+			ServerID:       "DirectMessage",
+			ArchiveEvents:  archives,
+		})
+
+		if tx.RowsAffected != 1 {
+			errs = append(errs, fmt.Errorf("unexpected number of rows affected inserting archive event: %v", tx.RowsAffected))
+		}
+	}
+
+	return embeds, errs
+}
+
+// handleArchiveMessage takes a discordgo.InteractionCreate and
+// calls go-archiver with a []string of URLs parsed from the message.
+// It then returns an embed with the resulting archived URLs,
+func (bot *ArchiverBot) handleArchiveMessage(i *discordgo.InteractionCreate) (
+	embeds []*discordgo.MessageEmbed, errs []error) {
+
+	message := &discordgo.Message{}
+	var archives []ArchiveEvent
+	commandData := i.Interaction.ApplicationCommandData()
+	if len(commandData.Options) > 1 {
+		embeds = append(embeds, &discordgo.MessageEmbed{
+			Title: "Too many options submitted",
+		})
+	} else {
+		for _, message := range commandData.Resolved.Messages {
+			messageUrls, errs := bot.extractMessageUrls(message.Content)
+			for index, err := range errs {
+				if err != nil {
+					log.Errorf("unable to extract message url: %s, err: %w", messageUrls[index], err)
+				}
+			}
+
+			archives, errs := bot.populateArchiveEventCache(messageUrls, true, discordgo.Guild{ID: "", Name: "ArchiveCommand"})
+			for _, err := range errs {
+				if err != nil {
+					log.Error("error populating archive cache: ", err)
+				}
+			}
+
+			sc := bot.getServerConfig(i.GuildID)
+
+			archivedLinks, errs := bot.executeArchiveEventRequest(&archives, sc,
+				true)
+			for _, err := range errs {
+				if err != nil {
+					log.Error("error populating archive cache: ", err)
+				}
+			}
+
+			if len(archivedLinks) < len(messageUrls) {
+				log.Errorf("did not receive the same number of archived links as submitted URLs")
+				if len(archivedLinks) == 0 {
+					log.Errorf("did not receive any Archive.org links")
+					archivedLinks = []string{"I was unable to get any Wayback Machine URLs. " +
+						"Most of the time, this is " +
+						"due to rate-limiting by Archive.org. " +
+						"Please try again"}
+				}
+			}
+
+			embeds, errs = bot.buildArchiveReply(archivedLinks, messageUrls, sc)
+
+			for _, err := range errs {
+				if err != nil {
+					log.Error("error building archive reply: ", err)
+				}
 			}
 		}
 	}

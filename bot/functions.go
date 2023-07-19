@@ -25,7 +25,7 @@ const (
 // calls go-archiver with a []string of URLs parsed from the message.
 // It then returns an embed with the resulting archived URLs,
 func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, newSnapshot bool) (
-	embeds []*discordgo.MessageEmbed, errs []error) {
+	messagesToSend []*discordgo.MessageSend, errs []error) {
 
 	typingStop := make(chan bool, 1)
 	go bot.typeInChannel(typingStop, r.ChannelID)
@@ -33,9 +33,13 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 	// If true, this is a DM
 	if r.GuildID == "" {
 		typingStop <- true
-		return []*discordgo.MessageEmbed{
+		return []*discordgo.MessageSend{
 			{
-				Description: "Use `/archive` or the `Get snapshot` menu item on the message instead of adding a reaction.",
+				Embeds: []*discordgo.MessageEmbed{
+					{
+						Description: "Use `/archive` or the `Get snapshot` menu item on the message instead of adding a reaction.",
+					},
+				},
 			},
 		}, errs
 	}
@@ -44,20 +48,20 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 	if sc.ArchiveEnabled.Valid && !sc.ArchiveEnabled.Bool {
 		log.Info("URLs were not archived because automatic archive is not enabled")
 		typingStop <- true
-		return embeds, errs
+		return messagesToSend, errs
 	}
 
 	// Do a lookup for the full guild object
 	guild, gErr := bot.DG.Guild(r.GuildID)
 	if gErr != nil {
 		typingStop <- true
-		return embeds, []error{fmt.Errorf("unable to look up server by id: %v", r.GuildID)}
+		return messagesToSend, []error{fmt.Errorf("unable to look up server by id: %v", r.GuildID)}
 	}
 
 	message, err := bot.DG.ChannelMessage(r.ChannelID, r.MessageID)
 	if err != nil {
 		typingStop <- true
-		return embeds, []error{fmt.Errorf("unable to look up message by id: %v", r.MessageID)}
+		return messagesToSend, []error{fmt.Errorf("unable to look up message by id: %v", r.MessageID)}
 	}
 
 	originalUrl := message.Content
@@ -71,7 +75,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 		// If the URL still has 'web.archive.org', then we failed to ge the original URL
 		fail, _ := regexp.MatchString(archiveDomain, originalUrl)
 		if fail {
-			return embeds, errs
+			return messagesToSend, errs
 		}
 
 		// The suffix turned out to be a real URL
@@ -110,7 +114,7 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 		}
 	}
 
-	embeds, errs = bot.buildArchiveReply(archivedLinks, messageUrls, sc)
+	messagesToSend, errs = bot.buildArchiveReply(archivedLinks, messageUrls, sc)
 
 	// Create a call to Archiver API event
 	tx := bot.DB.Create(&ArchiveEventEvent{
@@ -128,21 +132,25 @@ func (bot *ArchiverBot) handleArchiveRequest(r *discordgo.MessageReactionAdd, ne
 	}
 
 	typingStop <- true
-	return embeds, errs
+	return messagesToSend, errs
 }
 
 // handleArchiveCommand takes a discordgo.InteractionCreate and
 // calls go-archiver with a []string of URLs parsed from the message.
 // It then returns an embed with the resulting archived URLs,
 func (bot *ArchiverBot) handleArchiveCommand(i *discordgo.InteractionCreate) (
-	embeds []*discordgo.MessageEmbed, errs []error) {
+	messagesToSend []*discordgo.MessageSend, errs []error) {
 
 	message := &discordgo.Message{}
 	var archives []ArchiveEvent
 	commandInput := i.Interaction.ApplicationCommandData()
 	if len(commandInput.Options) > 1 {
-		embeds = append(embeds, &discordgo.MessageEmbed{
-			Title: "Too many options submitted",
+		messagesToSend = append(messagesToSend, &discordgo.MessageSend{
+			Embeds: []*discordgo.MessageEmbed{
+				{
+					Title: "Too many options submitted",
+				},
+			},
 		})
 	} else {
 		messageUrls, errs := bot.extractMessageUrls(commandInput.Options[0].StringValue())
@@ -180,7 +188,7 @@ func (bot *ArchiverBot) handleArchiveCommand(i *discordgo.InteractionCreate) (
 			}
 		}
 
-		embeds, errs = bot.buildArchiveReply(archivedLinks, messageUrls, sc)
+		messagesToSend, errs = bot.buildArchiveReply(archivedLinks, messageUrls, sc)
 
 		for _, err := range errs {
 			if err != nil {
@@ -207,21 +215,25 @@ func (bot *ArchiverBot) handleArchiveCommand(i *discordgo.InteractionCreate) (
 		}
 	}
 
-	return embeds, errs
+	return messagesToSend, errs
 }
 
 // handleArchiveMessage takes a discordgo.InteractionCreate and
 // calls go-archiver with a []string of URLs parsed from the message.
 // It then returns an embed with the resulting archived URLs,
 func (bot *ArchiverBot) handleArchiveMessage(i *discordgo.InteractionCreate) (
-	embeds []*discordgo.MessageEmbed, errs []error) {
+	messagesToSend []*discordgo.MessageSend, errs []error) {
 
 	message := &discordgo.Message{}
 	var archives []ArchiveEvent
 	commandData := i.Interaction.ApplicationCommandData()
 	if len(commandData.Options) > 1 {
-		embeds = append(embeds, &discordgo.MessageEmbed{
-			Title: "Too many options submitted",
+		messagesToSend = append(messagesToSend, &discordgo.MessageSend{
+			Embeds: []*discordgo.MessageEmbed{
+				{
+					Title: "Too many options submitted",
+				},
+			},
 		})
 	} else {
 		for _, message := range commandData.Resolved.Messages {
@@ -260,7 +272,7 @@ func (bot *ArchiverBot) handleArchiveMessage(i *discordgo.InteractionCreate) (
 				}
 			}
 
-			embeds, errs = bot.buildArchiveReply(archivedLinks, messageUrls, sc)
+			messagesToSend, errs = bot.buildArchiveReply(archivedLinks, messageUrls, sc)
 
 			for _, err := range errs {
 				if err != nil {
@@ -288,7 +300,7 @@ func (bot *ArchiverBot) handleArchiveMessage(i *discordgo.InteractionCreate) (
 		}
 	}
 
-	return embeds, errs
+	return messagesToSend, errs
 }
 
 // extractMessageUrls takes a string and returns a slice of URLs parsed from the string
@@ -399,7 +411,20 @@ func (bot *ArchiverBot) executeArchiveEventRequest(archiveEvents *[]ArchiveEvent
 }
 
 // executeArchiveRequest takes a slice of ArchiveEvents and returns a slice of strings of successfully archived links
-func (bot *ArchiverBot) buildArchiveReply(archivedLinks []string, messageUrls []string, sc ServerConfig) (embeds []*discordgo.MessageEmbed, errs []error) {
+func (bot *ArchiverBot) buildArchiveReply(archivedLinks []string, messageUrls []string, sc ServerConfig) (messagesToSend []*discordgo.MessageSend, errs []error) {
+	var embeds []*discordgo.MessageEmbed
+
+	components := []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label:    "Request new snapshot",
+					Style:    discordgo.PrimaryButton,
+					CustomID: globals.Retry},
+			},
+		},
+	}
+
 	for i := 0; i < len(archivedLinks); i++ {
 		originalUrl := messageUrls[i]
 		link := archivedLinks[i]
@@ -470,9 +495,16 @@ func (bot *ArchiverBot) buildArchiveReply(archivedLinks []string, messageUrls []
 			embed.Footer = &discordgo.MessageEmbedFooter{
 				Text: "⚙️ Customize this message with /settings",
 			}
+
+			embeds = append(embeds, &embed)
 		}
-		embeds = append(embeds, &embed)
 	}
 
-	return embeds, errs
+	reply := &discordgo.MessageSend{
+		Embeds:     embeds,
+		Components: components,
+	}
+
+	messagesToSend = append(messagesToSend, reply)
+	return messagesToSend, errs
 }

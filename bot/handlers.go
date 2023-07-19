@@ -169,7 +169,7 @@ func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *disco
 			return
 		}
 
-		for _, reply := range replies {
+		for _, messagesToSend := range replies {
 			if r.MessageReaction.GuildID != "" {
 				g, err := bot.DG.Guild(r.MessageReaction.GuildID)
 				if err != nil {
@@ -184,7 +184,7 @@ func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *disco
 					ServerName:     g.Name,
 				})
 			}
-			err := bot.sendArchiveResponse(m, reply)
+			err := bot.sendArchiveResponse(m, messagesToSend)
 			if err != nil {
 				log.Errorf("problem sending message: %v", err)
 			}
@@ -258,19 +258,19 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 				})
 			}
 
-			embeds, errs := bot.handleArchiveCommand(i)
+			messagesToSend, errs := bot.handleArchiveCommand(i)
 			for _, err := range errs {
 				if err != nil {
 					log.Errorf("problem handling archive command request: %v", err)
 				}
 			}
 
-			if len(embeds) == 0 {
+			if len(messagesToSend) == 0 {
 				log.Warn("no embeds were generated")
 				return
 			}
 
-			for index, embed := range embeds {
+			for index, message := range messagesToSend {
 				if len(errs) > 0 {
 					if errs[index] != nil {
 						guild.Name = "None"
@@ -298,7 +298,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 					})
 				}
 
-				err := bot.sendArchiveCommandResponse(i.Interaction, embed)
+				err := bot.sendArchiveCommandResponse(i.Interaction, message)
 				if err != nil {
 					log.Errorf("problem sending message: %v", err)
 				}
@@ -539,7 +539,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 				},
 			})
 			if interactionErr != nil {
-				log.Errorf("error responding to archive message reply interaction, err: %v", interactionErr)
+				log.Errorf("error responding to archive message messagesToSend interaction, err: %v", interactionErr)
 			}
 
 			// We trick handleArchiveRequest by giving it a fake message reaction
@@ -559,11 +559,11 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 
 			// This is necessary because the type is unknown
 			if embeds == nil {
-				log.Warn("retry used but no reply was generated")
+				log.Warn("retry used but no messagesToSend was generated")
 				return
 			}
 
-			for index, reply := range embeds {
+			for index, messagesToSend := range embeds {
 				m := discordgo.Message{
 					Member: &discordgo.Member{
 						User: &discordgo.User{
@@ -587,7 +587,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 					ServerName:     guild.Name,
 				})
 
-				err := bot.sendArchiveResponse(&m, reply)
+				err := bot.sendArchiveResponse(&m, messagesToSend)
 				if err != nil {
 					log.Errorf("problem sending message: %v", err)
 				}

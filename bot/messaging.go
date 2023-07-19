@@ -100,9 +100,12 @@ func (bot *ArchiverBot) sendArchiveCommandResponse(i *discordgo.Interaction, mes
 
 	if err != nil {
 		log.Errorf("problem sending message: %v", err)
-	} else {
-		go bot.removeRetryButtonAfterSleep(interactionMessage)
 	}
+
+	// We don't remove the reply button because one, the message is visible only
+	// to the calling user, so the space it takes up shouldn't matter (they
+	// can dismiss the message entirely as well). Second, it doesn't seem it's
+	// possible to edit that kind of message ¯\_(ツ)_/¯
 	return nil
 }
 
@@ -147,8 +150,7 @@ func (bot *ArchiverBot) removeRetryButtonAfterSleep(message *discordgo.Message) 
 
 	log.Debugf("removing retry button (waited %vs) for message ID %s in channel %s, guild: %s(%s)",
 		sleep, message.ID, message.ChannelID, sc.Name, sc.DiscordId)
-	reply, err := bot.DG.ChannelMessageEditComplex(&me)
-	reply = reply
+	_, err := bot.DG.ChannelMessageEditComplex(&me)
 	if err != nil {
 		log.Errorf("unable to remove retry button on message id %v, server: %s(%s): %v, ",
 			message.ID, message.GuildID, guild.Name, err)

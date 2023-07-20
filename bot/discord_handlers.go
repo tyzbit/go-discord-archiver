@@ -6,29 +6,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
 	globals "github.com/tyzbit/go-discord-archiver/globals"
-	"gorm.io/gorm"
 )
-
-// ArchiverBot is the main type passed around throughout the code
-// It has many functions for overall bot management
-type ArchiverBot struct {
-	DB     *gorm.DB
-	DG     *discordgo.Session
-	Config ArchiverBotConfig
-}
-
-// ArchiverBotConfig is attached to ArchiverBot so config settings can be
-// accessed easily
-type ArchiverBotConfig struct {
-	AdminIds   []string `env:"ADMINISTRATOR_IDS"`
-	DBHost     string   `env:"DB_HOST"`
-	DBName     string   `env:"DB_NAME"`
-	DBPassword string   `env:"DB_PASSWORD"`
-	DBUser     string   `env:"DB_USER"`
-	LogLevel   string   `env:"LOG_LEVEL"`
-	Token      string   `env:"TOKEN"`
-	Cookie     string   `env:"COOKIE"`
-}
 
 // BotReadyHandler is called when the bot is considered ready to use the Discord session
 func (bot *ArchiverBot) BotReadyHandler(s *discordgo.Session, r *discordgo.Ready) {
@@ -157,7 +135,11 @@ func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *disco
 				ChannelID: r.ChannelID,
 			}
 		}
-		replies, errs := bot.handleArchiveRequest(r, false)
+
+		typingStop := make(chan bool, 1)
+		go bot.typeInChannel(typingStop, r.ChannelID)
+
+		replies, errs := bot.buildMessageResponse(m, false)
 		for _, err := range errs {
 			if err != nil {
 				log.Errorf("problem handling archive request: %v", err)
@@ -166,6 +148,7 @@ func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *disco
 
 		if replies == nil {
 			log.Warn("no archive replies were returned")
+			typingStop <- true
 			return
 		}
 
@@ -184,6 +167,8 @@ func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *disco
 					ServerName:     g.Name,
 				})
 			}
+
+			typingStop <- true
 			err := bot.sendArchiveResponse(m, messagesToSend)
 			if err != nil {
 				log.Errorf("problem sending message: %v", err)
@@ -217,181 +202,9 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 				log.Errorf("error responding to help command "+globals.Help+", err: %v", err)
 			}
 		},
-		globals.Archive: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			log.Debug("handling archive command request")
-			// Send a response immediately that says the bot is thinking
-			bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Flags: uint64(discordgo.MessageFlagsEphemeral),
-				},
-			})
-			guild := &discordgo.Guild{}
-			var err error
-			if i.GuildID == "" {
-				guild.Name = "DirectMessage"
-			} else {
-				guild, err = bot.DG.Guild(i.Interaction.GuildID)
-				if err != nil {
-					guild.Name = "GuildLookupError"
-				}
-			}
-
-			// If i.Interaction.User is not nil, then this is a DM
-			if i.Interaction.User != nil {
-				bot.createInteractionEvent(InteractionEvent{
-					UserID:        i.Interaction.User.ID,
-					Username:      i.Interaction.User.Username,
-					InteractionId: i.ID,
-					ChannelId:     i.ChannelID,
-					ServerID:      i.GuildID,
-					ServerName:    guild.Name,
-				})
-			} else {
-				bot.createInteractionEvent(InteractionEvent{
-					UserID:        i.Interaction.Member.User.ID,
-					Username:      i.Interaction.Member.User.Username,
-					InteractionId: i.ID,
-					ChannelId:     i.ChannelID,
-					ServerID:      i.GuildID,
-					ServerName:    guild.Name,
-				})
-			}
-
-			messagesToSend, errs := bot.handleArchiveCommand(i)
-			for _, err := range errs {
-				if err != nil {
-					log.Errorf("problem handling archive command request: %v", err)
-				}
-			}
-
-			if len(messagesToSend) == 0 {
-				log.Warn("no embeds were generated")
-				return
-			}
-
-			for index, message := range messagesToSend {
-				if len(errs) > 0 {
-					if errs[index] != nil {
-						guild.Name = "None"
-						guild.ID = "0"
-					}
-				}
-
-				if i.Interaction.User != nil {
-					bot.createMessageEvent(MessageEvent{
-						AuthorId:       i.Interaction.User.ID,
-						AuthorUsername: i.Interaction.User.Username,
-						MessageId:      "",
-						ChannelId:      i.Interaction.ChannelID,
-						ServerID:       guild.ID,
-						ServerName:     guild.Name,
-					})
-				} else {
-					bot.createMessageEvent(MessageEvent{
-						AuthorId:       i.Interaction.Member.User.ID,
-						AuthorUsername: i.Interaction.Member.User.Username,
-						MessageId:      "",
-						ChannelId:      i.Interaction.ChannelID,
-						ServerID:       guild.ID,
-						ServerName:     guild.Name,
-					})
-				}
-
-				err := bot.sendArchiveCommandResponse(i.Interaction, message)
-				if err != nil {
-					log.Errorf("problem sending message: %v", err)
-				}
-			}
-		},
-		globals.ArchiveMessage: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			log.Debug("handling archive message request")
-			response := &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Flags: uint64(discordgo.MessageFlagsEphemeral),
-				},
-			}
-			bot.DG.InteractionRespond(i.Interaction, response)
-			guild := &discordgo.Guild{}
-			var err error
-			if i.GuildID == "" {
-				guild.Name = "DirectMessage"
-			} else {
-				guild, err = bot.DG.Guild(i.Interaction.GuildID)
-				if err != nil {
-					guild.Name = "GuildLookupError"
-				}
-			}
-
-			// If i.Interaction.User is not nil, then this is a DM
-			if i.Interaction.User != nil {
-				bot.createInteractionEvent(InteractionEvent{
-					UserID:        i.Interaction.User.ID,
-					Username:      i.Interaction.User.Username,
-					InteractionId: i.ID,
-					ChannelId:     i.ChannelID,
-					ServerID:      i.GuildID,
-					ServerName:    guild.Name,
-				})
-			} else {
-				bot.createInteractionEvent(InteractionEvent{
-					UserID:        i.Interaction.Member.User.ID,
-					Username:      i.Interaction.Member.User.Username,
-					InteractionId: i.ID,
-					ChannelId:     i.ChannelID,
-					ServerID:      i.GuildID,
-					ServerName:    guild.Name,
-				})
-			}
-
-			embeds, errs := bot.handleArchiveMessage(i)
-			for _, err := range errs {
-				if err != nil {
-					log.Errorf("problem handling archive command request: %v", err)
-				}
-			}
-
-			// This is necessary because the type is unknown
-			if len(embeds) == 0 {
-				log.Warn("no embed was generated")
-				return
-			}
-
-			for index, embed := range embeds {
-				if len(errs) > 0 {
-					if errs[index] != nil {
-						guild.Name = "None"
-						guild.ID = "0"
-					}
-				}
-
-				if i.Interaction.User != nil {
-					bot.createMessageEvent(MessageEvent{
-						AuthorId:       i.Interaction.User.ID,
-						AuthorUsername: i.Interaction.User.Username,
-						MessageId:      "",
-						ChannelId:      i.Interaction.ChannelID,
-						ServerID:       guild.ID,
-						ServerName:     guild.Name,
-					})
-				} else {
-					bot.createMessageEvent(MessageEvent{
-						AuthorId:       i.Interaction.Member.User.ID,
-						AuthorUsername: i.Interaction.Member.User.Username,
-						MessageId:      "",
-						ChannelId:      i.Interaction.ChannelID,
-						ServerID:       guild.ID,
-						ServerName:     guild.Name,
-					})
-				}
-
-				err := bot.sendArchiveCommandResponse(i.Interaction, embed)
-				if err != nil {
-					log.Errorf("problem sending message: %v", err)
-				}
-			}
-		},
+		// bot.archiveInteraction can handle both the archive slash command and the app menu function
+		globals.Archive:        func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, true) },
+		globals.ArchiveMessage: func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, true) },
 		// Stats does not create an InteractionEvent
 		globals.Stats: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			directMessage := (i.GuildID == "")
@@ -514,6 +327,9 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 
 	buttonHandlers := map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		globals.Retry: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			typingStop := make(chan bool, 1)
+			go bot.typeInChannel(typingStop, i.ChannelID)
+
 			// Remove retry button
 			i.Message.Components = []discordgo.MessageComponent{}
 
@@ -542,14 +358,18 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 				log.Errorf("error responding to archive message messagesToSend interaction, err: %v", interactionErr)
 			}
 
-			// We trick handleArchiveRequest by giving it a fake message reaction
-			embeds, errs := bot.handleArchiveRequest(&discordgo.MessageReactionAdd{
-				MessageReaction: &discordgo.MessageReaction{
-					MessageID: i.Message.ID,
-					ChannelID: i.ChannelID,
-					GuildID:   i.GuildID,
-				},
-			}, true)
+			var messagesToBeSent []*discordgo.MessageSend
+			var messageResponses []*discordgo.MessageSend
+			var errs []error
+			if i.Interaction != nil {
+				i.Interaction.Message.GuildID = guild.ID
+				messageResponses, errs = bot.buildMessageResponse(i.Interaction.Message, true)
+				messagesToBeSent = append(messagesToBeSent, messageResponses...)
+			} else {
+				i.Message.GuildID = guild.ID
+				messageResponses, errs = bot.buildMessageResponse(i.Message, true)
+				messagesToBeSent = append(messagesToBeSent, messageResponses...)
+			}
 
 			for _, err := range errs {
 				if err != nil {
@@ -558,12 +378,13 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 			}
 
 			// This is necessary because the type is unknown
-			if embeds == nil {
+			if len(messagesToBeSent) == 0 {
 				log.Warn("retry used but no messagesToSend was generated")
+				typingStop <- true
 				return
 			}
 
-			for index, messagesToSend := range embeds {
+			for index, messagesToSend := range messagesToBeSent {
 				m := discordgo.Message{
 					Member: &discordgo.Member{
 						User: &discordgo.User{
@@ -574,9 +395,11 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 					ChannelID: i.ChannelID,
 				}
 
-				if errs[index] != nil {
-					guild.Name = "None"
-					guild.ID = "0"
+				if len(errs) >= index+1 {
+					if errs[index] != nil {
+						guild.Name = "None"
+						guild.ID = "0"
+					}
 				}
 				bot.createMessageEvent(MessageEvent{
 					AuthorId:       s.State.User.ID,
@@ -587,11 +410,15 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 					ServerName:     guild.Name,
 				})
 
-				err := bot.sendArchiveResponse(&m, messagesToSend)
+				err = bot.sendArchiveResponse(&m, messagesToSend)
+
 				if err != nil {
 					log.Errorf("problem sending message: %v", err)
 				}
 			}
+
+			// This only has an effect if the message is not ephemeral
+			typingStop <- true
 		},
 		// Settings buttons/choices
 		globals.BotEnabled: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -635,6 +462,103 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 	case discordgo.InteractionMessageComponent:
 		if h, ok := buttonHandlers[i.MessageComponentData().CustomID]; ok {
 			h(s, i)
+		}
+	}
+}
+
+// archiveInteraction is called by adding 🏛️ to a message, using /archive
+// and using the "Get snapshots" app function.
+func (bot *ArchiverBot) archiveInteraction(i *discordgo.InteractionCreate, ephemeral bool) {
+	log.Debug("handling archive command request")
+	var flags uint64
+	if ephemeral {
+		flags = uint64(discordgo.MessageFlagsEphemeral)
+	}
+	// Send a response immediately that says the bot is thinking
+	_ = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags: flags,
+		},
+	})
+	guild := &discordgo.Guild{}
+	var err error
+	if i.GuildID == "" {
+		guild.Name = "DirectMessage"
+	} else {
+		guild, err = bot.DG.Guild(i.Interaction.GuildID)
+		if err != nil {
+			guild.Name = "GuildLookupError"
+		}
+	}
+
+	// If i.Interaction.User is not nil, then this is a DM
+	if i.Interaction.User != nil {
+		bot.createInteractionEvent(InteractionEvent{
+			UserID:        i.Interaction.User.ID,
+			Username:      i.Interaction.User.Username,
+			InteractionId: i.ID,
+			ChannelId:     i.ChannelID,
+			ServerID:      i.GuildID,
+			ServerName:    guild.Name,
+		})
+	} else {
+		bot.createInteractionEvent(InteractionEvent{
+			UserID:        i.Interaction.Member.User.ID,
+			Username:      i.Interaction.Member.User.Username,
+			InteractionId: i.ID,
+			ChannelId:     i.ChannelID,
+			ServerID:      i.GuildID,
+			ServerName:    guild.Name,
+		})
+	}
+
+	messagesToSend, errs := bot.buildInteractionResponse(i)
+	for _, err := range errs {
+		if err != nil {
+			log.Errorf("problem handling archive command request: %v", err)
+		}
+	}
+
+	if len(messagesToSend) == 0 {
+		log.Warn("no embeds were generated")
+		return
+	}
+
+	for index, message := range messagesToSend {
+		if len(errs) > 0 {
+			if errs[index] != nil {
+				guild.Name = "None"
+				guild.ID = "0"
+			}
+		}
+
+		if i.Interaction.User != nil {
+			bot.createMessageEvent(MessageEvent{
+				AuthorId:       i.Interaction.User.ID,
+				AuthorUsername: i.Interaction.User.Username,
+				MessageId:      "",
+				ChannelId:      i.Interaction.ChannelID,
+				ServerID:       guild.ID,
+				ServerName:     guild.Name,
+			})
+		} else {
+			bot.createMessageEvent(MessageEvent{
+				AuthorId:       i.Interaction.Member.User.ID,
+				AuthorUsername: i.Interaction.Member.User.Username,
+				MessageId:      "",
+				ChannelId:      i.Interaction.ChannelID,
+				ServerID:       guild.ID,
+				ServerName:     guild.Name,
+			})
+		}
+
+		if message == nil {
+			log.Errorf("empty message")
+		}
+		err := bot.sendArchiveCommandResponse(i.Interaction, message)
+		if err != nil {
+			log.Errorf("problem sending message: %v", err)
 		}
 	}
 }

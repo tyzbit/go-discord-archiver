@@ -84,7 +84,7 @@ var (
 		},
 		{
 			Name:        Archive,
-			Description: "Archive a URL directly and privately, react with 🏛️ on a message instead for others to see it",
+			Description: "Archive a URL directly and ephemerally, react with 🏛️ on a message instead for others to see it",
 			Type:        discordgo.ChatApplicationCommand,
 			Options: []*discordgo.ApplicationCommandOption{
 				{

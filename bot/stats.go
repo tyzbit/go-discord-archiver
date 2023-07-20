@@ -5,27 +5,6 @@ import (
 	"fmt"
 )
 
-// botStats is read by structToPrettyDiscordFields and converted
-// into a slice of *discordgo.MessageEmbedField
-type botStats struct {
-	ArchiveRequests   int64  `pretty:"Times the bot has been called"`
-	MessagesSent      int64  `pretty:"Messages Sent"`
-	CallsToArchiveOrg int64  `pretty:"Calls to Archive.org"`
-	URLsArchived      int64  `pretty:"URLs Archived"`
-	Interactions      int64  `pretty:"Interactions with the bot"`
-	TopDomains        string `pretty:"Top 5 Domains" inline:"false"`
-	ServersActive     int64  `pretty:"Active servers"`
-	ServersConfigured int64  `pretty:"Configured servers" global:"true"`
-}
-
-// domainStats is a slice of simple objects that specify a domain name
-// and a count, for use in stats commands to determine most
-// popular domains
-type domainStats []struct {
-	RequestDomainName string
-	Count             int
-}
-
 // getGlobalStats calls the database to get global stats for the bot
 // The output here is not appropriate to send to individual servers, except
 // for ServersActive

@@ -9,28 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type ServerRegistration struct {
-	DiscordId string `gorm:"primaryKey;uniqueIndex"`
-	Name      string
-	UpdatedAt time.Time
-	JoinedAt  time.Time
-	Active    sql.NullBool `pretty:"Bot is active in the server" gorm:"default:true"`
-	Config    ServerConfig `gorm:"foreignKey:DiscordId"`
-}
-
-type ServerConfig struct {
-	DiscordId          string         `gorm:"primaryKey;uniqueIndex" pretty:"Server ID"`
-	Name               string         `pretty:"Server Name" gorm:"default:default"`
-	ArchiveEnabled     sql.NullBool   `pretty:"Bot enabled" gorm:"default:true"`
-	AlwaysArchiveFirst sql.NullBool   `pretty:"Archive the page first (slower)" gorm:"default:false"`
-	ShowDetails        sql.NullBool   `pretty:"Show extra details" gorm:"default:true"`
-	RetryAttempts      sql.NullInt32  `pretty:"Number of times to retry calling archive.org" gorm:"default:1"`
-	RemoveRetriesDelay sql.NullInt32  `pretty:"Seconds to wait to remove retry button" gorm:"default:30"`
-	UTCOffset          sql.NullInt32  `pretty:"UTC Offset" gorm:"default:4"`
-	UTCSign            sql.NullString `pretty:"UTC Sign (Negative if west of Greenwich)" gorm:"default:-"`
-	UpdatedAt          time.Time
-}
-
 const archiverRepoUrl string = "https://github.com/tyzbit/go-discord-archiver"
 
 // registerOrUpdateServer checks if a guild is already registered in the database. If not,

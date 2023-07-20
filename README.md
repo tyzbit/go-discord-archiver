@@ -22,19 +22,33 @@ Otherwise, it will save stats to a local sqlite database at `/var/go-discord-arc
 
 ## Usage
 
-Configure the bot with slash commands:
+React to a message that has links with 🏛 (The "classical building" emoji) and the bot will respond in the channel with an archive.org link for the link(s). It saves the page to archive.org if needed.
+
+- You can also right-click (or long press) a message and use "Get snapshot" to get a message with snapshots that only you can see.
+
+**This is a pretty good way to get around paywalls to read articles for free.**
+
+### Commands
+
+Configure the bot:
+
 `/settings`
 
 Get a snapshot for one URL in a message visible only to you:
+
 `/archive`
 
-You can also right-click (or long press) a message and use "Get snapshot" to get a message with snapshots for any link that only you can see.
-
 Get stats for the bot:
+
 `/stats`
 
-Get help for the bot:
+Get this help message:
+
 `/help`
+
+### NOTES
+
+- It can take up to a few minutes for archive.org to save a page, so if you don't get a link immediately, please be patient.
 
 ## Development
 

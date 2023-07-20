@@ -93,13 +93,13 @@ func (bot *ArchiverBot) sendArchiveCommandResponse(i *discordgo.Interaction, mes
 		Components: message.Components,
 	})
 
+	if err != nil {
+		return err
+	}
+
 	// For some reason, this message is absent a Guild ID, so we copy from the previous message
 	if i.GuildID != "" {
 		interactionMessage.GuildID = i.GuildID
-	}
-
-	if err != nil {
-		log.Errorf("problem sending message: %v", err)
 	}
 
 	// We don't remove the reply button because one, the message is visible only

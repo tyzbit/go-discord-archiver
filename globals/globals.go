@@ -1,17 +1,24 @@
 package globals
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"github.com/bwmarrin/discordgo"
+)
 
 const (
 	// Interactive command aliases
 	Retry = "retry"
 
 	// Commands
-	Stats          = "stats"
-	Settings       = "settings"
-	Archive        = "archive"
-	ArchiveMessage = "Get snapshot"
-	Help           = "help"
+	Stats                     = "stats"
+	Settings                  = "settings"
+	Archive                   = "archive"
+	ArchiveMessage            = "Get snapshot"
+	ArchiveMessageNewSnapshot = "Take snapshot"
+	Help                      = "help"
+
+	// Command options
+	UrlOption             = "url"
+	TakeNewSnapshotOption = "new"
 
 	// Bot settings unique handler names
 	// Booleans
@@ -36,7 +43,7 @@ const (
 	BotHelpText = `**Usage**
 	React to a message that has links with 🏛 (The "classical building" emoji) and the bot will respond in the channel with an archive.org link for the link(s). It saves the page to archive.org if needed.
 
-- You can also right-click (or long press) a message and use "Get snapshot" to get a message with snapshots that only you can see.
+- You can also right-click (or long press) a message and use "Get snapshot" to get a message with snapshots that only you can see- You can also right-click (or long press) a message and use "Get snapshot" to get a message with snapshots that only you can see or select "Take snapshot" to take a snapshot of the live page.
 
 **This is a pretty good way to get around paywalls to read articles for free.**
 
@@ -44,7 +51,7 @@ Configure the bot:
 
 ` + "`/settings`" + `
 
-Get a snapshot for one URL in a message visible only to you:
+Get a snapshot for one URL in a message visible only to you (It will ask if you want to try to find an existing snapshot or take a new one):
 
 ` + "`/archive`" + `
 
@@ -88,15 +95,25 @@ var (
 			Type:        discordgo.ChatApplicationCommand,
 			Options: []*discordgo.ApplicationCommandOption{
 				{
-					Name:        "url",
+					Name:        UrlOption,
 					Description: "URL to get a Wayback Machine snapshot for",
 					Type:        discordgo.ApplicationCommandOptionString,
+					Required:    true,
+				},
+				{
+					Name:        TakeNewSnapshotOption,
+					Description: "Whether to take a new snapshot (True) or try to look for an existing one first (False)",
+					Type:        discordgo.ApplicationCommandOptionBoolean,
 					Required:    true,
 				},
 			},
 		},
 		{
 			Name: ArchiveMessage,
+			Type: discordgo.MessageApplicationCommand,
+		},
+		{
+			Name: ArchiveMessageNewSnapshot,
 			Type: discordgo.MessageApplicationCommand,
 		},
 		{

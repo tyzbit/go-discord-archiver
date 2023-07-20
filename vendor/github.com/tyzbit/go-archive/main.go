@@ -31,9 +31,11 @@ type ArchiveOrgWaybackAvailableResponse struct {
 }
 
 type ArchiveOrgWaybackSaveResponse struct {
-	URL     string `json:"url"`
-	JobID   string `json:"job_id"`
-	Message string `json:"message"`
+	URL       string `json:"url"`
+	JobID     string `json:"job_id"`
+	Message   string `json:"message"`
+	Status    string `json:"status,omitempty"`
+	StatusExt string `json:"statux_ext,omitempty"`
 }
 
 type ArchiveOrgWaybackStatusResponse struct {
@@ -78,12 +80,12 @@ func CheckURLWaybackAvailable(url string, retryAttempts uint) (r ArchiveOrgWayba
 		respTry, err := client.Get(archiveApi + "/wayback/available?url=" + url)
 		if err != nil {
 			return &RetriableError{
-				Err:        fmt.Errorf("error calling wayback api: %w", err),
+				Err:        fmt.Errorf("error calling archive.org wayback api: %w", err),
 				RetryAfter: 1 * time.Second,
 			}
 		}
 		if resp.StatusCode == 429 {
-			return fmt.Errorf("rate limited by wayback api")
+			return fmt.Errorf("rate limited by archive.org wayback api")
 		}
 		resp = *respTry
 		return nil
@@ -92,7 +94,8 @@ func CheckURLWaybackAvailable(url string, retryAttempts uint) (r ArchiveOrgWayba
 		retry.Delay(1*time.Second),
 		retry.DelayType(retry.FixedDelay),
 	); err != nil {
-		return r, fmt.Errorf("all %d attempts failed: %w", retryAttempts, err)
+		// retry returns a pretty human-readable error message
+		return r, err
 	} else {
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -121,7 +124,7 @@ func GetLatestURL(url string, retryAttempts uint, requestArchive bool, cookie st
 	if !requestArchive {
 		r, err := CheckURLWaybackAvailable(url, retryAttempts)
 		if err != nil {
-			return "", fmt.Errorf("error checking if url is available in wayback: %w", err)
+			return "", fmt.Errorf("error checking if url is available: %w", err)
 		}
 
 		closestURL = r.ArchivedSnapshots.Closest.URL
@@ -130,7 +133,7 @@ func GetLatestURL(url string, retryAttempts uint, requestArchive bool, cookie st
 	if closestURL == "" {
 		archiveUrl, err := ArchiveURL(url, retryAttempts, cookie)
 		if err != nil {
-			return "", fmt.Errorf("unable to archive URL %v, we got: %v, err: %w", url, archiveUrl, err)
+			return "", fmt.Errorf("unable to archive URL: %w", err)
 		}
 		// At this point, even if the URL is blank we should return it.
 		closestURL = archiveUrl
@@ -148,14 +151,8 @@ func GetLatestURLs(urls []string, retryAttempts uint, requestArchive bool, cooki
 		var err error
 		archiveUrl, err := GetLatestURL(url, retryAttempts, requestArchive, cookie)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("unable to get latest archive URL for %v, we got: %v, err: %w", url, archiveUrl, err))
+			errs = append(errs, err)
 			continue
-		}
-		if archiveUrl == "" {
-			archiveUrl, err = ArchiveURL(url, retryAttempts, cookie)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("unable to archive URL %v, we got: %v, err: %w", url, archiveUrl, err))
-			}
 		}
 		archiveUrls = append(archiveUrls, archiveUrl)
 	}
@@ -209,7 +206,7 @@ func ArchiveURL(archiveURL string, retryAttempts uint, cookie string) (archivedU
 			return err
 		// May not be necessary anymore now that we're calling a real API
 		case 523, 520:
-			return fmt.Errorf("archive.org declined to archive that page")
+			return fmt.Errorf("archive.org declined to archive the page")
 		default:
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
@@ -219,8 +216,14 @@ func ArchiveURL(archiveURL string, retryAttempts uint, cookie string) (archivedU
 			s := ArchiveOrgWaybackSaveResponse{}
 			_ = json.Unmarshal(body, &s)
 			if s.JobID == "" {
+				var message string
+				if s.Message != "" {
+					message = s.Message
+				} else {
+					message = string(body)
+				}
 				return &RetriableError{
-					Err:        fmt.Errorf("archive.org did not respond with a job_id: %v", string(body)),
+					Err:        fmt.Errorf("archive.org did not respond with a job_id: %v", message),
 					RetryAfter: 3 * time.Second,
 				}
 			}
@@ -249,7 +252,8 @@ func ArchiveURL(archiveURL string, retryAttempts uint, cookie string) (archivedU
 					retry.Delay(1*time.Second),
 					retry.DelayType(retry.BackOffDelay),
 				); err != nil {
-					return fmt.Errorf("all %d attempts waiting for successful job status failed: %w", retryAttempts, err)
+					// retry returns a pretty human-readable error message
+					return err
 				}
 			}
 
@@ -266,7 +270,7 @@ func ArchiveURL(archiveURL string, retryAttempts uint, cookie string) (archivedU
 			}
 		}
 		return &RetriableError{
-			Err:        fmt.Errorf("didn't get the response we need from archive.org"),
+			Err:        fmt.Errorf("archive.org had unexpected http status code: %v", resp.StatusCode),
 			RetryAfter: 3 * time.Second,
 		}
 	},
@@ -274,7 +278,8 @@ func ArchiveURL(archiveURL string, retryAttempts uint, cookie string) (archivedU
 		retry.Delay(1*time.Second),
 		retry.DelayType(retry.BackOffDelay),
 	); err != nil {
-		return "", fmt.Errorf("all %d attempts to get a snapshot URL failed: %w", retryAttempts, err)
+		// retry returns a pretty human-readable error message
+		return "", err
 	}
 
 	// This should always be a successful response.
@@ -286,10 +291,10 @@ func CheckArchiveRequestStatus(jobID string) (r ArchiveOrgWaybackStatusResponse,
 	client := http.Client{}
 	resp, err := client.Get(archiveApi + "/save/status/" + jobID)
 	if err != nil {
-		return r, fmt.Errorf("error calling wayback save status api: %w", err)
+		return r, fmt.Errorf("error calling archive.org status api: %w", err)
 	}
 	if resp.StatusCode == 429 {
-		return r, fmt.Errorf("rate limited by wayback api")
+		return r, fmt.Errorf("rate limited by archive.org status api")
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -309,10 +314,10 @@ func CheckArchiveSparkline(url string) (r ArchiveOrgWaybackSparklineResponse, er
 	client := http.Client{}
 	resp, err := client.Get(archiveApi + "/__wb/sparkline/?collection=web&output=json&url=" + url)
 	if err != nil {
-		return r, fmt.Errorf("error calling wayback save status api: %w", err)
+		return r, fmt.Errorf("error calling archive.org sparkline api: %w", err)
 	}
 	if resp.StatusCode == 429 {
-		return r, fmt.Errorf("rate limited by wayback api")
+		return r, fmt.Errorf("rate limited by archive.org sparkline api")
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)

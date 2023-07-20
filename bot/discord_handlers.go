@@ -203,8 +203,9 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 			}
 		},
 		// bot.archiveInteraction can handle both the archive slash command and the app menu function
-		globals.Archive:        func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, true) },
-		globals.ArchiveMessage: func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, true) },
+		globals.Archive:                   func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, false, true) },
+		globals.ArchiveMessage:            func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, false, true) },
+		globals.ArchiveMessageNewSnapshot: func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, true, true) },
 		// Stats does not create an InteractionEvent
 		globals.Stats: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			directMessage := (i.GuildID == "")
@@ -466,9 +467,8 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 	}
 }
 
-// archiveInteraction is called by adding 🏛️ to a message, using /archive
-// and using the "Get snapshots" app function.
-func (bot *ArchiverBot) archiveInteraction(i *discordgo.InteractionCreate, ephemeral bool) {
+// archiveInteraction is called by using /archive and using the "Get snapshots" app function.
+func (bot *ArchiverBot) archiveInteraction(i *discordgo.InteractionCreate, newSnapshot bool, ephemeral bool) {
 	log.Debug("handling archive command request")
 	var flags uint64
 	if ephemeral {
@@ -513,7 +513,7 @@ func (bot *ArchiverBot) archiveInteraction(i *discordgo.InteractionCreate, ephem
 		})
 	}
 
-	messagesToSend, errs := bot.buildInteractionResponse(i)
+	messagesToSend, errs := bot.buildInteractionResponse(i, newSnapshot)
 	for _, err := range errs {
 		if err != nil {
 			log.Errorf("problem handling archive command request: %v", err)

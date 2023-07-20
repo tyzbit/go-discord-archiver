@@ -24,7 +24,7 @@ Otherwise, it will save stats to a local sqlite database at `/var/go-discord-arc
 
 React to a message that has links with 🏛 (The "classical building" emoji) and the bot will respond in the channel with an archive.org link for the link(s). It saves the page to archive.org if needed.
 
-- You can also right-click (or long press) a message and use "Get snapshot" to get a message with snapshots that only you can see.
+- You can also right-click (or long press) a message and use "Get snapshot" to get a message with snapshots that only you can see or select "Take snapshot" to take a snapshot of the live page.
 
 **This is a pretty good way to get around paywalls to read articles for free.**
 
@@ -34,7 +34,7 @@ Configure the bot:
 
 `/settings`
 
-Get a snapshot for one URL in a message visible only to you:
+Get a snapshot for one URL in a message visible only to you (It will ask if you want to try to find an existing snapshot or take a new one):
 
 `/archive`
 

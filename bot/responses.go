@@ -168,78 +168,73 @@ func (bot *ArchiverBot) buildMessageResponse(m *discordgo.Message, newSnapshot b
 // calls go-archiver with a []string of URLs parsed from the message.
 // It then returns a slice of *discordgo.MessageSend with the resulting
 // archived URLs.
-func (bot *ArchiverBot) buildInteractionResponse(i *discordgo.InteractionCreate) (
+func (bot *ArchiverBot) buildInteractionResponse(i *discordgo.InteractionCreate, newSnapshot bool) (
 	messagesToSend []*discordgo.MessageSend, errs []error) {
 
-	message := &discordgo.Message{}
 	var archives []ArchiveEvent
 	commandData := i.Interaction.ApplicationCommandData()
-	if len(commandData.Options) > 1 {
-		messagesToSend = append(messagesToSend, &discordgo.MessageSend{
-			Embeds: []*discordgo.MessageEmbed{
-				{
-					Title: "Too many options submitted",
-				},
-			},
-		})
+	var messageUrls []string
+
+	// The message content is in different places depending on
+	// how the bot was called
+	if commandData.Name == globals.Archive {
+		for _, command := range commandData.Options {
+			if command.Name == globals.UrlOption {
+				messageUrls, errs = bot.extractMessageUrls(command.StringValue())
+			}
+			if command.Name == globals.TakeNewSnapshotOption {
+				newSnapshot = command.BoolValue()
+			}
+		}
+	} else if commandData.Name == globals.ArchiveMessage || commandData.Name == globals.ArchiveMessageNewSnapshot {
+		for _, message := range commandData.Resolved.Messages {
+			urlGroup, urlErrs := bot.extractMessageUrls(message.Content)
+			messageUrls = append(messageUrls, urlGroup...)
+			errs = append(errs, urlErrs...)
+		}
 	} else {
-		var messageUrls []string
-		var errs []error
+		log.Errorf("unexpected command name: %s", commandData.Name)
+	}
 
-		// The message content is in different places depending on
-		// how the bot was called
-		if commandData.Name == globals.Archive {
-			messageUrls, errs = bot.extractMessageUrls(commandData.Options[0].StringValue())
-		} else if commandData.Name == globals.ArchiveMessage {
-			for _, message := range commandData.Resolved.Messages {
-				urlGroup, urlErrs := bot.extractMessageUrls(message.Content)
-				messageUrls = append(messageUrls, urlGroup...)
-				errs = append(errs, urlErrs...)
-			}
-		} else {
-			log.Errorf("unexpected command name: %s", commandData.Name)
+	for index, err := range errs {
+		if err != nil {
+			log.Errorf("unable to extract message url: %s, err: %s", messageUrls[index], err)
 		}
+	}
 
-		for index, err := range errs {
-			if err != nil {
-				log.Errorf("unable to extract message url: %s, err: %s", messageUrls[index], err)
-			}
+	archives, errs = bot.populateArchiveEventCache(messageUrls, false, discordgo.Guild{ID: "", Name: "ArchiveCommand"})
+	for _, err := range errs {
+		if err != nil {
+			log.Error("error populating archive cache: ", err)
 		}
+	}
 
-		archives, errs := bot.populateArchiveEventCache(messageUrls, false, discordgo.Guild{ID: "", Name: "ArchiveCommand"})
-		for _, err := range errs {
-			if err != nil {
-				log.Error("error populating archive cache: ", err)
-			}
+	sc := bot.getServerConfig(i.GuildID)
+
+	archivedLinks, errs := bot.executeArchiveEventRequest(&archives, sc, newSnapshot)
+	for _, err := range errs {
+		if err != nil {
+			log.Error("error populating archive cache: ", err)
+			archivedLinks = append(archivedLinks, fmt.Sprintf("Error: %+v", err))
 		}
+	}
 
-		sc := bot.getServerConfig(i.GuildID)
-
-		archivedLinks, errs := bot.executeArchiveEventRequest(&archives, sc, true)
-		for _, err := range errs {
-			if err != nil {
-				log.Error("error populating archive cache: ", err)
-				archivedLinks = append(archivedLinks, fmt.Sprintf("Error: %+v", err))
-			}
+	if len(archivedLinks) < len(messageUrls) {
+		log.Errorf("did not receive the same number of archived links as submitted URLs")
+		if len(archivedLinks) == 0 {
+			log.Errorf("did not receive any Archive.org links")
+			archivedLinks = []string{"I was unable to get any Wayback Machine URLs. " +
+				"Most of the time, this is " +
+				"due to rate-limiting by Archive.org. " +
+				"Please try again"}
 		}
+	}
 
-		if len(archivedLinks) < len(messageUrls) {
-			log.Errorf("did not receive the same number of archived links as submitted URLs")
-			if len(archivedLinks) == 0 {
-				log.Errorf("did not receive any Archive.org links")
-				archivedLinks = []string{"I was unable to get any Wayback Machine URLs. " +
-					"Most of the time, this is " +
-					"due to rate-limiting by Archive.org. " +
-					"Please try again"}
-			}
-		}
+	messagesToSend, errs = bot.buildArchiveReply(archives, archivedLinks, messageUrls, sc, true)
 
-		messagesToSend, errs = bot.buildArchiveReply(archives, archivedLinks, messageUrls, sc, true)
-
-		for _, err := range errs {
-			if err != nil {
-				log.Error("error building archive reply: ", err)
-			}
+	for _, err := range errs {
+		if err != nil {
+			log.Error("error building archive reply: ", err)
 		}
 	}
 
@@ -248,10 +243,10 @@ func (bot *ArchiverBot) buildInteractionResponse(i *discordgo.InteractionCreate)
 		// Create a call to Archiver API event
 		tx := bot.DB.Create(&ArchiveEventEvent{
 			UUID:           archives[0].ArchiveEventEventUUID,
-			AuthorId:       message.Author.ID,
-			AuthorUsername: message.Author.Username,
-			ChannelId:      message.ChannelID,
-			MessageId:      message.ID,
+			AuthorId:       i.Interaction.Member.User.ID,
+			AuthorUsername: i.Interaction.Member.User.Username,
+			ChannelId:      i.Interaction.ChannelID,
+			MessageId:      i.Interaction.ID,
 			ServerID:       "DirectMessage",
 			ArchiveEvents:  archives,
 		})

@@ -2,7 +2,7 @@
 [![CI](https://github.com/golobby/cast/actions/workflows/ci.yml/badge.svg)](https://github.com/golobby/cast/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/golobby/cast/workflows/CodeQL/badge.svg)](https://github.com/golobby/cast/actions?query=workflow%3ACodeQL)
 [![Go Report Card](https://goreportcard.com/badge/github.com/golobby/cast)](https://goreportcard.com/report/github.com/golobby/cast)
-[![Coverage Status](https://coveralls.io/repos/github/golobby/cast/badge.svg)](https://coveralls.io/github/golobby/cast?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/golobby/cast/badge.svg?v=1.2)](https://coveralls.io/github/golobby/cast?branch=master)
 
 # Cast
 GoLobby Cast is a lightweight casting package for Go projects.
@@ -10,7 +10,7 @@ GoLobby Cast is a lightweight casting package for Go projects.
 ## Documentation
 
 ### Required Go Versions
-It requires Go `v1.11` or newer versions.
+It requires Go `v1.16` or newer versions.
 
 ### Installation
 To install this package, run the following command in your project directory.

@@ -1,9 +1,9 @@
-[![GoDoc](https://godoc.org/github.com/golobby/config/v3?status.svg)](https://godoc.org/github.com/golobby/config/v3)
+[![Go Reference](https://pkg.go.dev/badge/github.com/golobby/config.svg)](https://pkg.go.dev/github.com/golobby/config)
 [![CI](https://github.com/golobby/config/actions/workflows/ci.yml/badge.svg)](https://github.com/golobby/config/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/golobby/config/workflows/CodeQL/badge.svg)](https://github.com/golobby/config/actions?query=workflow%3ACodeQL)
 [![Go Report Card](https://goreportcard.com/badge/github.com/golobby/config)](https://goreportcard.com/report/github.com/golobby/config)
 [![Coverage Status](https://coveralls.io/repos/github/golobby/config/badge.svg)](https://coveralls.io/github/golobby/config?branch=master)
-[![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)](https://github.com/sindresorhus/awesome) 
+[![Mentioned in Awesome Go](https://awesome.re/mentioned-badge.svg)](https://github.com/avelino/awesome-go)  
 
 # Config
 GoLobby Config is a lightweight yet powerful configuration manager for Go projects.
@@ -11,7 +11,7 @@ It takes advantage of Dot-env (.env) files and OS environment variables alongsid
 
 ## Documentation
 ### Required Go Version
-It requires Go `v1.11` or newer versions.
+It requires Go `v1.16` or newer versions.
 
 ### Installation
 To install this package run the following command in the root of your project.
@@ -124,14 +124,6 @@ The `Env` feeder is built on top of the [GoLobby Env](https://github.com/golobby
 The example below shows how to use the `Env` feeder.
 
 ```go
-_ = os.Setenv("APP_NAME", "Shop")
-_ = os.Setenv("APP_PORT", "8585")
-_ = os.Setenv("DEBUG", "true")
-_ = os.Setenv("PRODUCTION", "false")
-_ = os.Setenv("PI", "3.14")
-_ = os.Setenv("IPS", "192.168.0.1", "192.168.0.2")
-_ = os.Setenv("IDS", "10, 11, 12, 13")
-
 type MyConfig struct {
     App struct {
         Name string `env:"APP_NAME"`
@@ -143,6 +135,14 @@ type MyConfig struct {
     IPs        []string `env:"IPS"`
     IDs        []int16  `env:"IDS"`
 }
+
+_ = os.Setenv("APP_NAME", "Shop")
+_ = os.Setenv("APP_PORT", "8585")
+_ = os.Setenv("DEBUG", "true")
+_ = os.Setenv("PRODUCTION", "false")
+_ = os.Setenv("PI", "3.14")
+_ = os.Setenv("IPS", "192.168.0.1", "192.168.0.2")
+_ = os.Setenv("IDS", "10, 11, 12, 13")
 
 myConfig := MyConfig{}
 envFeeder := feeder.DotEnv{}
@@ -164,10 +164,6 @@ The example below demonstrates how to use a JSON file as the main configuration 
 * Env (OS) variables: Defined in the Go code!
 
 ```go
-_ = os.Setenv("PRODUCTION", "true")
-_ = os.Setenv("APP_PORT", "6969")
-_ = os.Setenv("IDs", "6, 9")
-
 type MyConfig struct {
     App struct {
         Name string `env:"APP_NAME"`
@@ -179,18 +175,17 @@ type MyConfig struct {
     IDs        []int32 `env:"IDS"`
 }
 
+_ = os.Setenv("PRODUCTION", "true")
+_ = os.Setenv("APP_PORT", "6969")
+_ = os.Setenv("IDs", "6, 9")
+
 myConfig := MyConfig{}
 
 feeder1 := feeder.Json{Path: "sample1.json"}
 feeder2 := feeder.DotEnv{Path: ".env.sample2"}
 feeder3 := feeder.Env{}
 
-err := config.New()
-        .AddFeeder(feeder1)
-        .AddFeeder(feeder2)
-        .AddFeeder(feeder3)
-        .AddStruct(&myConfig)
-        .Feed()
+err := config.New().AddFeeder(feeder1, feeder2, feeder3).AddStruct(&myConfig).Feed()
 
 fmt.Println(c.App.Name)   // Blog  [from DotEnv]
 fmt.Println(c.App.Port)   // 6969  [from Env]
@@ -207,6 +202,51 @@ What happened?
   The `APP_NAME` and `DEBUG` fields exist in the `.env.sample2` file.
 * The `Env` feeder as the last feeder overrides existing fields, as well.
   The `APP_PORT` and `PRODUCTION` fields are defined in the OS environment.
+  
+### Setup Method
+
+The `Setup()` method runs automatically after feeding.
+You can use this method for post-processing logics.
+
+```go
+type Region int
+
+const (
+    Asia Region = iota
+    Europe
+    America
+    Else
+)
+
+type Config struct {
+    RegionId int `env:"REGION"`
+    Region   Region
+}
+
+func (c *Config) Setup() error {
+    if fc.RegionId == 0 {
+        fc.Region = Asia
+    } else if fc.RegionId == 1 {
+        fc.Region = Europe
+    } else if fc.RegionId == 2 {
+        fc.Region = America
+    } else if fc.RegionId == 3 {
+        fc.Region = Else
+    } else {
+        return errors.New("invalid region")
+    }
+    return nil
+}
+
+_ = os.Setenv("REGION", "2")
+
+myConfig := Config{}
+f := feeder.Env{}
+
+err := config.New().AddFeeder(f).AddStruct(&myConfig).Feed()
+
+fmt.Println(c.Region) // America (2)
+```
 
 ### Re-feed
 You can re-feed the structs every time you need to.

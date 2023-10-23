@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/gin-gonic/gin v1.7.7
-	github.com/golobby/config/v3 v3.3.4
+	github.com/golobby/config/v3 v3.4.2
 	github.com/google/uuid v1.3.1
 	github.com/mvdan/xurls v1.1.0
 	github.com/sirupsen/logrus v1.8.1
@@ -16,7 +16,7 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v0.4.1 // indirect
+	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.13.0 // indirect
@@ -24,9 +24,9 @@ require (
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/golang/protobuf v1.3.3 // indirect
-	github.com/golobby/cast v1.3.0 // indirect
-	github.com/golobby/dotenv v1.3.1 // indirect
-	github.com/golobby/env/v2 v2.2.0 // indirect
+	github.com/golobby/cast v1.3.3 // indirect
+	github.com/golobby/dotenv v1.3.2 // indirect
+	github.com/golobby/env/v2 v2.2.4 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
@@ -40,5 +40,5 @@ require (
 	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
 	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

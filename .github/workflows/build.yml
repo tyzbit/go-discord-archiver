@@ -28,6 +28,6 @@ jobs:
             docker build -t ghcr.io/${{ github.repository }}:latest .
             docker push ghcr.io/${{ github.repository }}:latest
           else
-            docker build ghcr.io/${{ github.repository }}:${{ env.TAG_NAME }} .
+            docker build -t ghcr.io/${{ github.repository }}:${{ env.TAG_NAME }} .
             docker push ghcr.io/${{ github.repository }}:${{ env.TAG_NAME }}
           fi

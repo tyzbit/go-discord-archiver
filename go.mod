@@ -8,7 +8,7 @@ require (
 	github.com/golobby/config/v3 v3.4.2
 	github.com/google/uuid v1.3.1
 	github.com/mvdan/xurls v1.1.0
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.9.3
 	github.com/tyzbit/go-archive v0.0.0-20230720150823-69f1618c0490
 	gorm.io/driver/mysql v1.5.2
 	gorm.io/driver/sqlite v1.3.1
@@ -38,7 +38,7 @@ require (
 	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
-	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

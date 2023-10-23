@@ -5,7 +5,7 @@ github.com/BurntSushi/toml/internal
 # github.com/avast/retry-go v3.0.0+incompatible
 ## explicit
 github.com/avast/retry-go
-# github.com/bwmarrin/discordgo v0.25.0
+# github.com/bwmarrin/discordgo v0.27.1
 ## explicit; go 1.13
 github.com/bwmarrin/discordgo
 # github.com/gin-contrib/sse v0.1.0

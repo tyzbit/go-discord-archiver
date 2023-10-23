@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"strconv"
-	"strings"
 
 	"gorm.io/gorm/callbacks"
 
@@ -56,7 +55,7 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 	if compareVersion(version, "3.35.0") >= 0 {
 		callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{
 			CreateClauses:        []string{"INSERT", "VALUES", "ON CONFLICT", "RETURNING"},
-			UpdateClauses:        []string{"UPDATE", "SET", "WHERE", "RETURNING"},
+			UpdateClauses:        []string{"UPDATE", "SET", "FROM", "WHERE", "RETURNING"},
 			DeleteClauses:        []string{"DELETE", "FROM", "WHERE", "RETURNING"},
 			LastInsertIDReversed: true,
 		})
@@ -97,14 +96,17 @@ func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 		},
 		"LIMIT": func(c clause.Clause, builder clause.Builder) {
 			if limit, ok := c.Expression.(clause.Limit); ok {
-				if limit.Limit > 0 || limit.Offset > 0 {
-					if limit.Limit <= 0 {
-						limit.Limit = -1
-					}
-					builder.WriteString("LIMIT " + strconv.Itoa(limit.Limit))
+				var lmt = -1
+				if limit.Limit != nil && *limit.Limit >= 0 {
+					lmt = *limit.Limit
+				}
+				if lmt >= 0 || limit.Offset > 0 {
+					builder.WriteString("LIMIT ")
+					builder.WriteString(strconv.Itoa(lmt))
 				}
 				if limit.Offset > 0 {
-					builder.WriteString(" OFFSET " + strconv.Itoa(limit.Offset))
+					builder.WriteString(" OFFSET ")
+					builder.WriteString(strconv.Itoa(limit.Offset))
 				}
 			}
 		},
@@ -140,19 +142,51 @@ func (dialector Dialector) BindVarTo(writer clause.Writer, stmt *gorm.Statement,
 }
 
 func (dialector Dialector) QuoteTo(writer clause.Writer, str string) {
-	writer.WriteByte('`')
-	if strings.Contains(str, ".") {
-		for idx, str := range strings.Split(str, ".") {
-			if idx > 0 {
-				writer.WriteString(".`")
+	var (
+		underQuoted, selfQuoted bool
+		continuousBacktick      int8
+		shiftDelimiter          int8
+	)
+
+	for _, v := range []byte(str) {
+		switch v {
+		case '`':
+			continuousBacktick++
+			if continuousBacktick == 2 {
+				writer.WriteString("``")
+				continuousBacktick = 0
 			}
-			writer.WriteString(str)
-			writer.WriteByte('`')
+		case '.':
+			if continuousBacktick > 0 || !selfQuoted {
+				shiftDelimiter = 0
+				underQuoted = false
+				continuousBacktick = 0
+				writer.WriteString("`")
+			}
+			writer.WriteByte(v)
+			continue
+		default:
+			if shiftDelimiter-continuousBacktick <= 0 && !underQuoted {
+				writer.WriteString("`")
+				underQuoted = true
+				if selfQuoted = continuousBacktick > 0; selfQuoted {
+					continuousBacktick -= 1
+				}
+			}
+
+			for ; continuousBacktick > 0; continuousBacktick -= 1 {
+				writer.WriteString("``")
+			}
+
+			writer.WriteByte(v)
 		}
-	} else {
-		writer.WriteString(str)
-		writer.WriteByte('`')
+		shiftDelimiter++
 	}
+
+	if continuousBacktick > 0 && !selfQuoted {
+		writer.WriteString("``")
+	}
+	writer.WriteString("`")
 }
 
 func (dialector Dialector) Explain(sql string, vars ...interface{}) string {
@@ -164,7 +198,8 @@ func (dialector Dialector) DataTypeOf(field *schema.Field) string {
 	case schema.Bool:
 		return "numeric"
 	case schema.Int, schema.Uint:
-		if field.AutoIncrement && !field.PrimaryKey {
+		if field.AutoIncrement {
+			// doesn't check `PrimaryKey`, to keep backward compatibility
 			// https://www.sqlite.org/autoinc.html
 			return "integer PRIMARY KEY AUTOINCREMENT"
 		} else {
@@ -175,7 +210,12 @@ func (dialector Dialector) DataTypeOf(field *schema.Field) string {
 	case schema.String:
 		return "text"
 	case schema.Time:
-		return "datetime"
+		// Distinguish between schema.Time and tag time
+		if val, ok := field.TagSettings["TYPE"]; ok {
+			return val
+		} else {
+			return "datetime"
+		}
 	case schema.Bytes:
 		return "blob"
 	}

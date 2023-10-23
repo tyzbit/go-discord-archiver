@@ -3,7 +3,7 @@ module github.com/tyzbit/go-discord-archiver
 go 1.18
 
 require (
-	github.com/bwmarrin/discordgo v0.25.0
+	github.com/bwmarrin/discordgo v0.27.1
 	github.com/gin-gonic/gin v1.7.7
 	github.com/golobby/config/v3 v3.3.4
 	github.com/google/uuid v1.3.1

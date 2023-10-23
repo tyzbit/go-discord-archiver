@@ -7,7 +7,7 @@
 
 // This file contains code related to state tracking.  If enabled, state
 // tracking will capture the initial READY packet and many other websocket
-// events and maintain an in-memory state of of guilds, channels, users, and
+// events and maintain an in-memory state of guilds, channels, users, and
 // so forth.  This information can be accessed through the Session.State struct.
 
 package discordgo
@@ -206,6 +206,15 @@ func (s *State) presenceAdd(guildID string, presence *Presence) error {
 			guild.Presences[i].Activities = presence.Activities
 			if presence.Status != "" {
 				guild.Presences[i].Status = presence.Status
+			}
+			if presence.ClientStatus.Desktop != "" {
+				guild.Presences[i].ClientStatus.Desktop = presence.ClientStatus.Desktop
+			}
+			if presence.ClientStatus.Mobile != "" {
+				guild.Presences[i].ClientStatus.Mobile = presence.ClientStatus.Mobile
+			}
+			if presence.ClientStatus.Web != "" {
+				guild.Presences[i].ClientStatus.Web = presence.ClientStatus.Web
 			}
 
 			//Update the optionally sent user information
@@ -661,18 +670,6 @@ func (s *State) ThreadMemberUpdate(mu *ThreadMemberUpdate) error {
 	return nil
 }
 
-// GuildChannel gets a channel by ID from a guild.
-// This method is Deprecated, use Channel(channelID)
-func (s *State) GuildChannel(guildID, channelID string) (*Channel, error) {
-	return s.Channel(channelID)
-}
-
-// PrivateChannel gets a private channel by ID.
-// This method is Deprecated, use Channel(channelID)
-func (s *State) PrivateChannel(channelID string) (*Channel, error) {
-	return s.Channel(channelID)
-}
-
 // Channel gets a channel by ID, it will look in all guilds and private channels.
 func (s *State) Channel(channelID string) (*Channel, error) {
 	if s == nil {
@@ -921,9 +918,11 @@ func (s *State) onReady(se *Session, r *Ready) (err error) {
 	// if state is disabled, store the bare essentials.
 	if !se.StateEnabled {
 		ready := Ready{
-			Version:   r.Version,
-			SessionID: r.SessionID,
-			User:      r.User,
+			Version:     r.Version,
+			SessionID:   r.SessionID,
+			User:        r.User,
+			Shard:       r.Shard,
+			Application: r.Application,
 		}
 
 		s.Ready = ready
@@ -993,6 +992,13 @@ func (s *State) OnInterface(se *Session, i interface{}) (err error) {
 		}
 	case *GuildMemberUpdate:
 		if s.TrackMembers {
+			var old *Member
+			old, err = s.Member(t.GuildID, t.User.ID)
+			if err == nil {
+				oldCopy := *old
+				t.BeforeUpdate = &oldCopy
+			}
+
 			err = s.MemberAdd(t.Member)
 		}
 	case *GuildMemberRemove:
@@ -1035,7 +1041,14 @@ func (s *State) OnInterface(se *Session, i interface{}) (err error) {
 		}
 	case *GuildEmojisUpdate:
 		if s.TrackEmojis {
-			err = s.EmojisAdd(t.GuildID, t.Emojis)
+			var guild *Guild
+			guild, err = s.Guild(t.GuildID)
+			if err != nil {
+				return err
+			}
+			s.Lock()
+			defer s.Unlock()
+			guild.Emojis = t.Emojis
 		}
 	case *ChannelCreate:
 		if s.TrackChannels {

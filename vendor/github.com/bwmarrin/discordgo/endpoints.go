@@ -46,8 +46,6 @@ var (
 	EndpointVoice        = EndpointAPI + "/voice/"
 	EndpointVoiceRegions = EndpointVoice + "regions"
 
-	// TODO: EndpointUserGuildMember
-
 	EndpointUser               = func(uID string) string { return EndpointUsers + uID }
 	EndpointUserAvatar         = func(uID, aID string) string { return EndpointCDNAvatars + uID + "/" + aID + ".png" }
 	EndpointUserAvatarAnimated = func(uID, aID string) string { return EndpointCDNAvatars + uID + "/" + aID + ".gif" }
@@ -62,12 +60,17 @@ var (
 		return EndpointCDNBanners + uID + "/" + cID + ".gif"
 	}
 
-	EndpointUserGuilds      = func(uID string) string { return EndpointUsers + uID + "/guilds" }
-	EndpointUserGuild       = func(uID, gID string) string { return EndpointUsers + uID + "/guilds/" + gID }
-	EndpointUserChannels    = func(uID string) string { return EndpointUsers + uID + "/channels" }
-	EndpointUserConnections = func(uID string) string { return EndpointUsers + uID + "/connections" }
+	EndpointUserGuilds                    = func(uID string) string { return EndpointUsers + uID + "/guilds" }
+	EndpointUserGuild                     = func(uID, gID string) string { return EndpointUsers + uID + "/guilds/" + gID }
+	EndpointUserGuildMember               = func(uID, gID string) string { return EndpointUserGuild(uID, gID) + "/member" }
+	EndpointUserChannels                  = func(uID string) string { return EndpointUsers + uID + "/channels" }
+	EndpointUserApplicationRoleConnection = func(aID string) string { return EndpointUsers + "@me/applications/" + aID + "/role-connection" }
+	EndpointUserConnections               = func(uID string) string { return EndpointUsers + uID + "/connections" }
 
 	EndpointGuild                    = func(gID string) string { return EndpointGuilds + gID }
+	EndpointGuildAutoModeration      = func(gID string) string { return EndpointGuild(gID) + "/auto-moderation" }
+	EndpointGuildAutoModerationRules = func(gID string) string { return EndpointGuildAutoModeration(gID) + "/rules" }
+	EndpointGuildAutoModerationRule  = func(gID, rID string) string { return EndpointGuildAutoModerationRules(gID) + "/" + rID }
 	EndpointGuildThreads             = func(gID string) string { return EndpointGuild(gID) + "/threads" }
 	EndpointGuildActiveThreads       = func(gID string) string { return EndpointGuildThreads(gID) + "/active" }
 	EndpointGuildPreview             = func(gID string) string { return EndpointGuilds + gID + "/preview" }
@@ -94,6 +97,7 @@ var (
 	EndpointGuildEmojis              = func(gID string) string { return EndpointGuilds + gID + "/emojis" }
 	EndpointGuildEmoji               = func(gID, eID string) string { return EndpointGuilds + gID + "/emojis/" + eID }
 	EndpointGuildBanner              = func(gID, hash string) string { return EndpointCDNBanners + gID + "/" + hash + ".png" }
+	EndpointGuildBannerAnimated      = func(gID, hash string) string { return EndpointCDNBanners + gID + "/" + hash + ".gif" }
 	EndpointGuildStickers            = func(gID string) string { return EndpointGuilds + gID + "/stickers" }
 	EndpointGuildSticker             = func(gID, sID string) string { return EndpointGuilds + gID + "/stickers/" + sID }
 	EndpointStageInstance            = func(cID string) string { return EndpointStageInstances + "/" + cID }
@@ -195,8 +199,9 @@ var (
 	EndpointEmoji         = func(eID string) string { return EndpointCDN + "emojis/" + eID + ".png" }
 	EndpointEmojiAnimated = func(eID string) string { return EndpointCDN + "emojis/" + eID + ".gif" }
 
-	EndpointApplications = EndpointAPI + "applications"
-	EndpointApplication  = func(aID string) string { return EndpointApplications + "/" + aID }
+	EndpointApplications                      = EndpointAPI + "applications"
+	EndpointApplication                       = func(aID string) string { return EndpointApplications + "/" + aID }
+	EndpointApplicationRoleConnectionMetadata = func(aID string) string { return EndpointApplication(aID) + "/role-connections/metadata" }
 
 	EndpointOAuth2                  = EndpointAPI + "oauth2/"
 	EndpointOAuth2Applications      = EndpointOAuth2 + "applications"

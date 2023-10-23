@@ -52,7 +52,7 @@ func retryRemoveOptions(sc ServerConfig) (options []discordgo.SelectMenuOption) 
 // SettingsIntegrationResponse returns server settings in a *discordgo.InteractionResponseData
 func (bot *ArchiverBot) SettingsIntegrationResponse(sc ServerConfig) *discordgo.InteractionResponseData {
 	return &discordgo.InteractionResponseData{
-		Flags: uint64(discordgo.MessageFlagsEphemeral),
+		Flags: discordgo.MessageFlagsEphemeral,
 		Components: []discordgo.MessageComponent{
 			discordgo.ActionsRow{
 				Components: []discordgo.MessageComponent{
@@ -114,7 +114,7 @@ func (bot *ArchiverBot) SettingsIntegrationResponse(sc ServerConfig) *discordgo.
 // stating that a failure to update settings has occured
 func (bot *ArchiverBot) settingsFailureIntegrationResponse() *discordgo.InteractionResponseData {
 	return &discordgo.InteractionResponseData{
-		Flags: uint64(discordgo.MessageFlagsEphemeral),
+		Flags: discordgo.MessageFlagsEphemeral,
 		Embeds: []*discordgo.MessageEmbed{
 			{
 				Title: "Unable to update setting",
@@ -128,7 +128,7 @@ func (bot *ArchiverBot) settingsFailureIntegrationResponse() *discordgo.Interact
 // stating that a failure to update settings has occured
 func (bot *ArchiverBot) settingsDMFailureIntegrationResponse() *discordgo.InteractionResponseData {
 	return &discordgo.InteractionResponseData{
-		Flags: uint64(discordgo.MessageFlagsEphemeral),
+		Flags: discordgo.MessageFlagsEphemeral,
 		Embeds: []*discordgo.MessageEmbed{
 			{
 				Title: "The bot does not have any per-user settings",

@@ -184,7 +184,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 			err := bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Flags: uint64(discordgo.MessageFlagsEphemeral),
+					Flags: discordgo.MessageFlagsEphemeral,
 					Embeds: []*discordgo.MessageEmbed{
 						{
 							Title:       "🏛️ Archive.org Bot Help",
@@ -270,7 +270,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 			err := bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Flags: uint64(discordgo.MessageFlagsEphemeral),
+					Flags: discordgo.MessageFlagsEphemeral,
 					Embeds: []*discordgo.MessageEmbed{
 						{
 							Title:  "🏛️ Archive.org Bot Stats",
@@ -352,7 +352,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 				Data: &discordgo.InteractionResponseData{
 					Embeds:     i.Message.Embeds,
 					Components: i.Message.Components,
-					Flags:      uint64(i.Message.Flags),
+					Flags:      i.Message.Flags,
 				},
 			})
 			if interactionErr != nil {
@@ -470,9 +470,9 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 // archiveInteraction is called by using /archive and using the "Get snapshots" app function.
 func (bot *ArchiverBot) archiveInteraction(i *discordgo.InteractionCreate, newSnapshot bool, ephemeral bool) {
 	log.Debug("handling archive command request")
-	var flags uint64
+	var flags discordgo.MessageFlags
 	if ephemeral {
-		flags = uint64(discordgo.MessageFlagsEphemeral)
+		flags = discordgo.MessageFlagsEphemeral
 	}
 	// Send a response immediately that says the bot is thinking
 	_ = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

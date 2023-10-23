@@ -89,8 +89,8 @@ func (bot *ArchiverBot) sendArchiveCommandResponse(i *discordgo.Interaction, mes
 	}
 
 	interactionMessage, err := bot.DG.InteractionResponseEdit(i, &discordgo.WebhookEdit{
-		Embeds:     message.Embeds,
-		Components: message.Components,
+		Embeds:     &message.Embeds,
+		Components: &message.Components,
 	})
 
 	if err != nil {

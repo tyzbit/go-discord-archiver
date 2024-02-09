@@ -672,9 +672,14 @@ func (s *Session) GuildEdit(guildID string, g *GuildParams, options ...RequestOp
 
 // GuildDelete deletes a Guild.
 // guildID   : The ID of a Guild
-func (s *Session) GuildDelete(guildID string, options ...RequestOption) (err error) {
+func (s *Session) GuildDelete(guildID string, options ...RequestOption) (st *Guild, err error) {
 
-	_, err = s.RequestWithBucketID("DELETE", EndpointGuild(guildID), nil, EndpointGuild(guildID), options...)
+	body, err := s.RequestWithBucketID("DELETE", EndpointGuild(guildID), nil, EndpointGuild(guildID), options...)
+	if err != nil {
+		return
+	}
+
+	err = unmarshal(body, &st)
 	return
 }
 
@@ -1695,19 +1700,13 @@ func (s *Session) ChannelMessageSendComplex(channelID string, data *MessageSend,
 		}
 	}
 
-	if data.StickerIDs != nil {
-		if len(data.StickerIDs) > 3 {
-			err = fmt.Errorf("cannot send more than 3 stickers")
-			return
-		}
-	}
-
 	var response []byte
 	if len(files) > 0 {
 		contentType, body, encodeErr := MultipartBodyWithJSON(data, files)
 		if encodeErr != nil {
 			return st, encodeErr
 		}
+
 		response, err = s.request("POST", endpoint, contentType, body, endpoint, 0, options...)
 	} else {
 		response, err = s.RequestWithBucketID("POST", endpoint, data, endpoint, options...)
@@ -1797,18 +1796,16 @@ func (s *Session) ChannelMessageEditComplex(m *MessageEdit, options ...RequestOp
 	// TODO: Remove this when compatibility is not required.
 	if m.Embed != nil {
 		if m.Embeds == nil {
-			m.Embeds = &[]*MessageEmbed{m.Embed}
+			m.Embeds = []*MessageEmbed{m.Embed}
 		} else {
 			err = fmt.Errorf("cannot specify both Embed and Embeds")
 			return
 		}
 	}
 
-	if m.Embeds != nil {
-		for _, embed := range *m.Embeds {
-			if embed.Type == "" {
-				embed.Type = "rich"
-			}
+	for _, embed := range m.Embeds {
+		if embed.Type == "" {
+			embed.Type = "rich"
 		}
 	}
 
@@ -2300,8 +2297,7 @@ func (s *Session) WebhookEditWithToken(webhookID, token, name, avatar string, op
 		Avatar string `json:"avatar,omitempty"`
 	}{name, avatar}
 
-	var body []byte
-	body, err = s.RequestWithBucketID("PATCH", EndpointWebhookToken(webhookID, token), data, EndpointWebhookToken("", ""), options...)
+	body, err := s.RequestWithBucketID("PATCH", EndpointWebhookToken(webhookID, token), data, EndpointWebhookToken("", ""), options...)
 	if err != nil {
 		return
 	}
@@ -2713,22 +2709,11 @@ func (s *Session) ThreadMemberRemove(threadID, memberID string, options ...Reque
 	return err
 }
 
-// ThreadMember returns thread member object for the specified member of a thread.
-// withMember : Whether to include a guild member object.
-func (s *Session) ThreadMember(threadID, memberID string, withMember bool, options ...RequestOption) (member *ThreadMember, err error) {
-	uri := EndpointThreadMember(threadID, memberID)
-
-	queryParams := url.Values{}
-	if withMember {
-		queryParams.Set("with_member", "true")
-	}
-
-	if len(queryParams) > 0 {
-		uri += "?" + queryParams.Encode()
-	}
-
+// ThreadMember returns thread member object for the specified member of a thread
+func (s *Session) ThreadMember(threadID, memberID string, options ...RequestOption) (member *ThreadMember, err error) {
+	endpoint := EndpointThreadMember(threadID, memberID)
 	var body []byte
-	body, err = s.RequestWithBucketID("GET", uri, nil, uri, options...)
+	body, err = s.RequestWithBucketID("GET", endpoint, nil, endpoint, options...)
 
 	if err != nil {
 		return
@@ -2739,29 +2724,9 @@ func (s *Session) ThreadMember(threadID, memberID string, withMember bool, optio
 }
 
 // ThreadMembers returns all members of specified thread.
-// limit      : Max number of thread members to return (1-100). Defaults to 100.
-// afterID    : Get thread members after this user ID.
-// withMember : Whether to include a guild member object for each thread member.
-func (s *Session) ThreadMembers(threadID string, limit int, withMember bool, afterID string, options ...RequestOption) (members []*ThreadMember, err error) {
-	uri := EndpointThreadMembers(threadID)
-
-	queryParams := url.Values{}
-	if withMember {
-		queryParams.Set("with_member", "true")
-	}
-	if limit > 0 {
-		queryParams.Set("limit", strconv.Itoa(limit))
-	}
-	if afterID != "" {
-		queryParams.Set("after", afterID)
-	}
-
-	if len(queryParams) > 0 {
-		uri += "?" + queryParams.Encode()
-	}
-
+func (s *Session) ThreadMembers(threadID string, options ...RequestOption) (members []*ThreadMember, err error) {
 	var body []byte
-	body, err = s.RequestWithBucketID("GET", uri, nil, uri, options...)
+	body, err = s.RequestWithBucketID("GET", EndpointThreadMembers(threadID), nil, EndpointThreadMembers(threadID), options...)
 
 	if err != nil {
 		return
@@ -3280,37 +3245,6 @@ func (s *Session) GuildScheduledEventUsers(guildID, eventID string, limit int, w
 	}
 
 	err = unmarshal(body, &st)
-	return
-}
-
-// GuildOnboarding returns onboarding configuration of a guild.
-// guildID   : The ID of the guild
-func (s *Session) GuildOnboarding(guildID string, options ...RequestOption) (onboarding *GuildOnboarding, err error) {
-	endpoint := EndpointGuildOnboarding(guildID)
-
-	var body []byte
-	body, err = s.RequestWithBucketID("GET", endpoint, nil, endpoint, options...)
-	if err != nil {
-		return
-	}
-
-	err = unmarshal(body, &onboarding)
-	return
-}
-
-// GuildOnboardingEdit edits onboarding configuration of a guild.
-// guildID   : The ID of the guild
-// o         : New GuildOnboarding data
-func (s *Session) GuildOnboardingEdit(guildID string, o *GuildOnboarding, options ...RequestOption) (onboarding *GuildOnboarding, err error) {
-	endpoint := EndpointGuildOnboarding(guildID)
-
-	var body []byte
-	body, err = s.RequestWithBucketID("PUT", endpoint, o, endpoint, options...)
-	if err != nil {
-		return
-	}
-
-	err = unmarshal(body, &onboarding)
 	return
 }
 

@@ -42,7 +42,6 @@ var (
 	EndpointCDNChannelIcons = EndpointCDN + "channel-icons/"
 	EndpointCDNBanners      = EndpointCDN + "banners/"
 	EndpointCDNGuilds       = EndpointCDN + "guilds/"
-	EndpointCDNRoleIcons    = EndpointCDN + "role-icons/"
 
 	EndpointVoice        = EndpointAPI + "/voice/"
 	EndpointVoiceRegions = EndpointVoice + "regions"
@@ -50,8 +49,9 @@ var (
 	EndpointUser               = func(uID string) string { return EndpointUsers + uID }
 	EndpointUserAvatar         = func(uID, aID string) string { return EndpointCDNAvatars + uID + "/" + aID + ".png" }
 	EndpointUserAvatarAnimated = func(uID, aID string) string { return EndpointCDNAvatars + uID + "/" + aID + ".gif" }
-	EndpointDefaultUserAvatar  = func(idx int) string {
-		return EndpointCDN + "embed/avatars/" + strconv.Itoa(idx) + ".png"
+	EndpointDefaultUserAvatar  = func(uDiscriminator string) string {
+		uDiscriminatorInt, _ := strconv.Atoi(uDiscriminator)
+		return EndpointCDN + "embed/avatars/" + strconv.Itoa(uDiscriminatorInt%5) + ".png"
 	}
 	EndpointUserBanner = func(uID, cID string) string {
 		return EndpointCDNBanners + uID + "/" + cID + ".png"
@@ -104,8 +104,7 @@ var (
 	EndpointGuildScheduledEvents     = func(gID string) string { return EndpointGuilds + gID + "/scheduled-events" }
 	EndpointGuildScheduledEvent      = func(gID, eID string) string { return EndpointGuilds + gID + "/scheduled-events/" + eID }
 	EndpointGuildScheduledEventUsers = func(gID, eID string) string { return EndpointGuildScheduledEvent(gID, eID) + "/users" }
-	EndpointGuildOnboarding          = func(gID string) string { return EndpointGuilds + gID + "/onboarding" }
-	EndpointGuildTemplate            = func(tID string) string { return EndpointGuilds + "templates/" + tID }
+	EndpointGuildTemplate            = func(tID string) string { return EndpointGuilds + "/templates/" + tID }
 	EndpointGuildTemplates           = func(gID string) string { return EndpointGuilds + gID + "/templates" }
 	EndpointGuildTemplateSync        = func(gID, tID string) string { return EndpointGuilds + gID + "/templates/" + tID }
 	EndpointGuildMemberAvatar        = func(gId, uID, aID string) string {
@@ -113,10 +112,6 @@ var (
 	}
 	EndpointGuildMemberAvatarAnimated = func(gId, uID, aID string) string {
 		return EndpointCDNGuilds + gId + "/users/" + uID + "/avatars/" + aID + ".gif"
-	}
-
-	EndpointRoleIcon = func(rID, hash string) string {
-		return EndpointCDNRoleIcons + rID + "/" + hash + ".png"
 	}
 
 	EndpointChannel                             = func(cID string) string { return EndpointChannels + cID }

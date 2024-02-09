@@ -42,9 +42,6 @@ type Session struct {
 	// Should the session reconnect the websocket on errors.
 	ShouldReconnectOnError bool
 
-	// Should voice connections reconnect on a session reconnect.
-	ShouldReconnectVoiceOnSessionError bool
-
 	// Should the session retry requests when rate limited.
 	ShouldRetryOnRateLimit bool
 
@@ -443,7 +440,7 @@ type ChannelEdit struct {
 	Name                          string                 `json:"name,omitempty"`
 	Topic                         string                 `json:"topic,omitempty"`
 	NSFW                          *bool                  `json:"nsfw,omitempty"`
-	Position                      *int                   `json:"position,omitempty"`
+	Position                      int                    `json:"position"`
 	Bitrate                       int                    `json:"bitrate,omitempty"`
 	UserLimit                     int                    `json:"user_limit,omitempty"`
 	PermissionOverwrites          []*PermissionOverwrite `json:"permission_overwrites,omitempty"`
@@ -531,10 +528,6 @@ type ThreadMember struct {
 	JoinTimestamp time.Time `json:"join_timestamp"`
 	// Any user-thread settings, currently only used for notifications
 	Flags int `json:"flags"`
-	// Additional information about the user.
-	// NOTE: only present if the withMember parameter is set to true
-	// when calling Session.ThreadMembers or Session.ThreadMember.
-	Member *Member `json:"member,omitempty"`
 }
 
 // ThreadsList represents a list of threads alongisde with thread member objects for the current user.
@@ -1074,109 +1067,6 @@ type GuildScheduledEventUser struct {
 	Member                *Member `json:"member"`
 }
 
-// GuildOnboardingMode defines the criteria used to satisfy constraints that are required for enabling onboarding.
-// https://discord.com/developers/docs/resources/guild#guild-onboarding-object-onboarding-mode
-type GuildOnboardingMode int
-
-// Block containing known GuildOnboardingMode values.
-const (
-	// GuildOnboardingModeDefault counts default channels towards constraints.
-	GuildOnboardingModeDefault GuildOnboardingMode = 0
-	// GuildOnboardingModeAdvanced counts default channels and questions towards constraints.
-	GuildOnboardingModeAdvanced GuildOnboardingMode = 1
-)
-
-// GuildOnboarding represents the onboarding flow for a guild.
-// https://discord.com/developers/docs/resources/guild#guild-onboarding-object
-type GuildOnboarding struct {
-	// ID of the guild this onboarding flow is part of.
-	GuildID string `json:"guild_id,omitempty"`
-
-	// Prompts shown during onboarding and in the customize community (Channels & Roles) tab.
-	Prompts *[]GuildOnboardingPrompt `json:"prompts,omitempty"`
-
-	// Channel IDs that members get opted into automatically.
-	DefaultChannelIDs []string `json:"default_channel_ids,omitempty"`
-
-	// Whether onboarding is enabled in the guild.
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// Mode of onboarding.
-	Mode *GuildOnboardingMode `json:"mode,omitempty"`
-}
-
-// GuildOnboardingPromptType is the type of an onboarding prompt.
-// https://discord.com/developers/docs/resources/guild#guild-onboarding-object-prompt-types
-type GuildOnboardingPromptType int
-
-// Block containing known GuildOnboardingPromptType values.
-const (
-	GuildOnboardingPromptTypeMultipleChoice GuildOnboardingPromptType = 0
-	GuildOnboardingPromptTypeDropdown       GuildOnboardingPromptType = 1
-)
-
-// GuildOnboardingPrompt is a prompt shown during onboarding and in the customize community (Channels & Roles) tab.
-// https://discord.com/developers/docs/resources/guild#guild-onboarding-object-onboarding-prompt-structure
-type GuildOnboardingPrompt struct {
-	// ID of the prompt.
-	// NOTE: always requires to be a valid snowflake (e.g. "0"), see
-	// https://github.com/discord/discord-api-docs/issues/6320 for more information.
-	ID string `json:"id,omitempty"`
-
-	// Type of the prompt.
-	Type GuildOnboardingPromptType `json:"type"`
-
-	// Options available within the prompt.
-	Options []GuildOnboardingPromptOption `json:"options"`
-
-	// Title of the prompt.
-	Title string `json:"title"`
-
-	// Indicates whether users are limited to selecting one option for the prompt.
-	SingleSelect bool `json:"single_select"`
-
-	// Indicates whether the prompt is required before a user completes the onboarding flow.
-	Required bool `json:"required"`
-
-	// Indicates whether the prompt is present in the onboarding flow.
-	// If false, the prompt will only appear in the customize community (Channels & Roles) tab.
-	InOnboarding bool `json:"in_onboarding"`
-}
-
-// GuildOnboardingPromptOption is an option available within an onboarding prompt.
-// https://discord.com/developers/docs/resources/guild#guild-onboarding-object-prompt-option-structure
-type GuildOnboardingPromptOption struct {
-	// ID of the prompt option.
-	ID string `json:"id,omitempty"`
-
-	// IDs for channels a member is added to when the option is selected.
-	ChannelIDs []string `json:"channel_ids"`
-
-	// IDs for roles assigned to a member when the option is selected.
-	RoleIDs []string `json:"role_ids"`
-
-	// Emoji of the option.
-	// NOTE: when creating or updating a prompt option
-	// EmojiID, EmojiName and EmojiAnimated should be used instead.
-	Emoji *Emoji `json:"emoji,omitempty"`
-
-	// Title of the option.
-	Title string `json:"title"`
-
-	// Description of the option.
-	Description string `json:"description"`
-
-	// ID of the option's emoji.
-	// NOTE: only used when creating or updating a prompt option.
-	EmojiID string `json:"emoji_id,omitempty"`
-	// Name of the option's emoji.
-	// NOTE: only used when creating or updating a prompt option.
-	EmojiName string `json:"emoji_name,omitempty"`
-	// Whether the option's emoji is animated.
-	// NOTE: only used when creating or updating a prompt option.
-	EmojiAnimated *bool `json:"emoji_animated,omitempty"`
-}
-
 // A GuildTemplate represents a replicable template for guild creation
 type GuildTemplate struct {
 	// The unique code for the guild template
@@ -1349,34 +1239,11 @@ type Role struct {
 	// This is a combination of bit masks; the presence of a certain permission can
 	// be checked by performing a bitwise AND between this int and the permission.
 	Permissions int64 `json:"permissions,string"`
-
-	// The hash of the role icon. Use Role.IconURL to retrieve the icon's URL.
-	Icon string `json:"icon"`
-
-	// The emoji assigned to this role.
-	UnicodeEmoji string `json:"unicode_emoji"`
 }
 
 // Mention returns a string which mentions the role
 func (r *Role) Mention() string {
 	return fmt.Sprintf("<@&%s>", r.ID)
-}
-
-// IconURL returns the URL of the role's icon.
-//
-//	size:    The size of the desired role icon as a power of two
-//	         Image size can be any power of two between 16 and 4096.
-func (r *Role) IconURL(size string) string {
-	if r.Icon == "" {
-		return ""
-	}
-
-	URL := EndpointRoleIcon(r.ID, r.Icon)
-
-	if size != "" {
-		return URL + "?size=" + size
-	}
-	return URL
 }
 
 // RoleParams represents the parameters needed to create or update a Role
@@ -1391,12 +1258,6 @@ type RoleParams struct {
 	Permissions *int64 `json:"permissions,omitempty,string"`
 	// Whether this role is mentionable
 	Mentionable *bool `json:"mentionable,omitempty"`
-	// The role's unicode emoji.
-	// NOTE: can only be set if the guild has the ROLE_ICONS feature.
-	UnicodeEmoji *string `json:"unicode_emoji,omitempty"`
-	// The role's icon image encoded in base64.
-	// NOTE: can only be set if the guild has the ROLE_ICONS feature.
-	Icon *string `json:"icon,omitempty"`
 }
 
 // Roles are a collection of Role
@@ -1528,15 +1389,6 @@ func (m *Member) AvatarURL(size string) string {
 	return avatarURL(m.Avatar, "", EndpointGuildMemberAvatar(m.GuildID, m.User.ID, m.Avatar),
 		EndpointGuildMemberAvatarAnimated(m.GuildID, m.User.ID, m.Avatar), size)
 
-}
-
-// DisplayName returns the member's guild nickname if they have one,
-// otherwise it returns their discord display name.
-func (m *Member) DisplayName() string {
-	if m.Nick != "" {
-		return m.Nick
-	}
-	return m.User.GlobalName
 }
 
 // ClientStatus stores the online, offline, idle, or dnd status of each device of a Guild member.
@@ -1886,18 +1738,14 @@ const (
 // AuditLogOptions optional data for the AuditLog
 // https://discord.com/developers/docs/resources/audit-log#audit-log-entry-object-optional-audit-entry-info
 type AuditLogOptions struct {
-	DeleteMemberDays              string               `json:"delete_member_days"`
-	MembersRemoved                string               `json:"members_removed"`
-	ChannelID                     string               `json:"channel_id"`
-	MessageID                     string               `json:"message_id"`
-	Count                         string               `json:"count"`
-	ID                            string               `json:"id"`
-	Type                          *AuditLogOptionsType `json:"type"`
-	RoleName                      string               `json:"role_name"`
-	ApplicationID                 string               `json:"application_id"`
-	AutoModerationRuleName        string               `json:"auto_moderation_rule_name"`
-	AutoModerationRuleTriggerType string               `json:"auto_moderation_rule_trigger_type"`
-	IntegrationType               string               `json:"integration_type"`
+	DeleteMemberDays string               `json:"delete_member_days"`
+	MembersRemoved   string               `json:"members_removed"`
+	ChannelID        string               `json:"channel_id"`
+	MessageID        string               `json:"message_id"`
+	Count            string               `json:"count"`
+	ID               string               `json:"id"`
+	Type             *AuditLogOptionsType `json:"type"`
+	RoleName         string               `json:"role_name"`
 }
 
 // AuditLogOptionsType of the AuditLogOption
@@ -1906,8 +1754,8 @@ type AuditLogOptionsType string
 
 // Valid Types for AuditLogOptionsType
 const (
-	AuditLogOptionsTypeRole   AuditLogOptionsType = "0"
-	AuditLogOptionsTypeMember AuditLogOptionsType = "1"
+	AuditLogOptionsTypeMember AuditLogOptionsType = "member"
+	AuditLogOptionsTypeRole   AuditLogOptionsType = "role"
 )
 
 // AuditLogAction is the Action of the AuditLog (see AuditLogAction* consts)
@@ -1968,7 +1816,7 @@ const (
 	AuditLogActionStickerDelete AuditLogAction = 92
 
 	AuditLogGuildScheduledEventCreate AuditLogAction = 100
-	AuditLogGuildScheduledEventUpdate AuditLogAction = 101
+	AuditLogGuildScheduledEventUpdare AuditLogAction = 101
 	AuditLogGuildScheduledEventDelete AuditLogAction = 102
 
 	AuditLogActionThreadCreate AuditLogAction = 110
@@ -1976,16 +1824,6 @@ const (
 	AuditLogActionThreadDelete AuditLogAction = 112
 
 	AuditLogActionApplicationCommandPermissionUpdate AuditLogAction = 121
-
-	AuditLogActionAutoModerationRuleCreate                AuditLogAction = 140
-	AuditLogActionAutoModerationRuleUpdate                AuditLogAction = 141
-	AuditLogActionAutoModerationRuleDelete                AuditLogAction = 142
-	AuditLogActionAutoModerationBlockMessage              AuditLogAction = 143
-	AuditLogActionAutoModerationFlagToChannel             AuditLogAction = 144
-	AuditLogActionAutoModerationUserCommunicationDisabled AuditLogAction = 145
-
-	AuditLogActionCreatorMonetizationRequestCreated AuditLogAction = 150
-	AuditLogActionCreatorMonetizationTermsAccepted  AuditLogAction = 151
 )
 
 // GuildMemberParams stores data needed to update a member
@@ -2503,9 +2341,6 @@ const (
 
 	ErrCodeCannotUpdateAFinishedEvent             = 180000
 	ErrCodeFailedToCreateStageNeededForStageEvent = 180002
-
-	ErrCodeCannotEnableOnboardingRequirementsAreNotMet  = 350000
-	ErrCodeCannotUpdateOnboardingWhileBelowRequirements = 350001
 )
 
 // Intent is the type of a Gateway Intent
@@ -2516,7 +2351,7 @@ type Intent int
 const (
 	IntentGuilds                      Intent = 1 << 0
 	IntentGuildMembers                Intent = 1 << 1
-	IntentGuildModeration             Intent = 1 << 2
+	IntentGuildBans                   Intent = 1 << 2
 	IntentGuildEmojis                 Intent = 1 << 3
 	IntentGuildIntegrations           Intent = 1 << 4
 	IntentGuildWebhooks               Intent = 1 << 5
@@ -2535,8 +2370,6 @@ const (
 	IntentAutoModerationExecution     Intent = 1 << 21
 
 	// TODO: remove when compatibility is not needed
-
-	IntentGuildBans Intent = IntentGuildModeration
 
 	IntentsGuilds                 Intent = 1 << 0
 	IntentsGuildMembers           Intent = 1 << 1

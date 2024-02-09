@@ -215,10 +215,6 @@ const (
 	MessageFlagsLoading MessageFlags = 1 << 7
 	// MessageFlagsFailedToMentionSomeRolesInThread this message failed to mention some roles and add their members to the thread.
 	MessageFlagsFailedToMentionSomeRolesInThread MessageFlags = 1 << 8
-	// MessageFlagsSuppressNotifications this message will not trigger push and desktop notifications.
-	MessageFlagsSuppressNotifications MessageFlags = 1 << 12
-	// MessageFlagsIsVoiceMessage this message is a voice message.
-	MessageFlagsIsVoiceMessage MessageFlags = 1 << 13
 )
 
 // File stores info about files you e.g. send in messages.
@@ -237,8 +233,6 @@ type MessageSend struct {
 	Files           []*File                 `json:"-"`
 	AllowedMentions *MessageAllowedMentions `json:"allowed_mentions,omitempty"`
 	Reference       *MessageReference       `json:"message_reference,omitempty"`
-	StickerIDs      []string                `json:"sticker_ids"`
-	Flags           MessageFlags            `json:"flags,omitempty"`
 
 	// TODO: Remove this when compatibility is not required.
 	File *File `json:"-"`
@@ -251,8 +245,8 @@ type MessageSend struct {
 // is also where you should get the instance from.
 type MessageEdit struct {
 	Content         *string                 `json:"content,omitempty"`
-	Components      *[]MessageComponent     `json:"components,omitempty"`
-	Embeds          *[]*MessageEmbed        `json:"embeds,omitempty"`
+	Components      []MessageComponent      `json:"components"`
+	Embeds          []*MessageEmbed         `json:"embeds"`
 	AllowedMentions *MessageAllowedMentions `json:"allowed_mentions,omitempty"`
 	Flags           MessageFlags            `json:"flags,omitempty"`
 	// Files to append to the message
@@ -286,14 +280,14 @@ func (m *MessageEdit) SetContent(str string) *MessageEdit {
 // SetEmbed is a convenience function for setting the embed,
 // so you can chain commands.
 func (m *MessageEdit) SetEmbed(embed *MessageEmbed) *MessageEdit {
-	m.Embeds = &[]*MessageEmbed{embed}
+	m.Embeds = []*MessageEmbed{embed}
 	return m
 }
 
 // SetEmbeds is a convenience function for setting the embeds,
 // so you can chain commands.
 func (m *MessageEdit) SetEmbeds(embeds []*MessageEmbed) *MessageEdit {
-	m.Embeds = &embeds
+	m.Embeds = embeds
 	return m
 }
 
@@ -466,30 +460,18 @@ type MessageApplication struct {
 
 // MessageReference contains reference data sent with crossposted messages
 type MessageReference struct {
-	MessageID       string `json:"message_id"`
-	ChannelID       string `json:"channel_id,omitempty"`
-	GuildID         string `json:"guild_id,omitempty"`
-	FailIfNotExists *bool  `json:"fail_if_not_exists,omitempty"`
+	MessageID string `json:"message_id"`
+	ChannelID string `json:"channel_id,omitempty"`
+	GuildID   string `json:"guild_id,omitempty"`
 }
 
-func (m *Message) reference(failIfNotExists bool) *MessageReference {
-	return &MessageReference{
-		GuildID:         m.GuildID,
-		ChannelID:       m.ChannelID,
-		MessageID:       m.ID,
-		FailIfNotExists: &failIfNotExists,
-	}
-}
-
-// Reference returns a MessageReference of the given message.
+// Reference returns MessageReference of given message
 func (m *Message) Reference() *MessageReference {
-	return m.reference(true)
-}
-
-// SoftReference returns a MessageReference of the given message.
-// If the message doesn't exist it will instead be sent as a non-reply message.
-func (m *Message) SoftReference() *MessageReference {
-	return m.reference(false)
+	return &MessageReference{
+		GuildID:   m.GuildID,
+		ChannelID: m.ChannelID,
+		MessageID: m.ID,
+	}
 }
 
 // ContentWithMentionsReplaced will replace all @<id> mentions with the

@@ -55,10 +55,6 @@ Get a snapshot for one URL in a message visible only to you (It will ask if you 
 
 ` + "`/archive`" + `
 
-Get stats for the bot:
-
-` + "`/stats`" + `
-
 Get this help message:
 
 ` + "`/help`"

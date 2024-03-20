@@ -2,6 +2,12 @@
 
 Discord bot for archive.org, written in Go
 
+## Help and data deletion requests
+
+Join the Discord for help and for deletion requests
+
+https://discord.gg/kvE2bbfYu3
+
 ## Configuration
 
 Set some environment variables before launching, or add a `.env` file.
@@ -37,10 +43,6 @@ Configure the bot:
 Get a snapshot for one URL in a message visible only to you (It will ask if you want to try to find an existing snapshot or take a new one):
 
 `/archive`
-
-Get stats for the bot:
-
-`/stats`
 
 Get this help message:
 

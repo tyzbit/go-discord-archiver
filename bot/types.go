@@ -9,45 +9,18 @@ import (
 )
 
 // Events
-// A MessageEvent is created when we receive a message that
-// requires our attention
-type MessageEvent struct {
-	CreatedAt          time.Time
-	UUID               string `gorm:"primaryKey" gorm:"uniqueIndex"`
-	AuthorId           string `gorm:"index"`
-	AuthorUsername     string
-	MessageId          string
-	ChannelId          string
-	ServerID           string `gorm:"index"`
-	ServerName         string
-	ArchiveEventEvents []ArchiveEventEvent `gorm:"foreignKey:UUID"`
-}
-
-// A InteractionEvent when a user interacts with an Embed
-type InteractionEvent struct {
-	CreatedAt          time.Time
-	UUID               string `gorm:"primaryKey" gorm:"uniqueIndex"`
-	UserID             string `gorm:"index"`
-	Username           string
-	InteractionId      string
-	ChannelId          string
-	ServerID           string `gorm:"index"`
-	ServerName         string
-	ArchiveEventEvents []ArchiveEventEvent `gorm:"foreignKey:UUID"`
-}
-
-// Every successful ArchiveEventEvent will come from a message
-type ArchiveEventEvent struct {
-	CreatedAt      time.Time
-	UUID           string `gorm:"primaryKey;uniqueIndex"`
-	AuthorId       string
-	AuthorUsername string
-	ChannelId      string
-	MessageId      string
-	ServerID       string `gorm:"index"`
-	ServerName     string
-	ArchiveEvents  []ArchiveEvent `gorm:"foreignKey:ArchiveEventEventUUID"`
-}
+// // Every successful ArchiveEventEvent will come from a message
+// type ArchiveEventEvent struct {
+// 	CreatedAt      time.Time
+// 	UUID           string `gorm:"primaryKey;uniqueIndex"`
+// 	AuthorId       string
+// 	AuthorUsername string
+// 	ChannelId      string
+// 	MessageId      string
+// 	ServerID       string `gorm:"index"`
+// 	ServerName     string
+// 	ArchiveEvents  []ArchiveEvent `gorm:"foreignKey:ArchiveEventEventUUID"`
+// }
 
 // This is the representation of request and response URLs from users or
 // the Archiver API
@@ -107,26 +80,4 @@ type ServerConfig struct {
 	UTCOffset          sql.NullInt32  `pretty:"UTC Offset" gorm:"default:4"`
 	UTCSign            sql.NullString `pretty:"UTC Sign (Negative if west of Greenwich)" gorm:"default:-"`
 	UpdatedAt          time.Time
-}
-
-// Stats
-// botStats is read by structToPrettyDiscordFields and converted
-// into a slice of *discordgo.MessageEmbedField
-type botStats struct {
-	ArchiveRequests   int64  `pretty:"Times the bot has been called"`
-	MessagesSent      int64  `pretty:"Messages Sent"`
-	CallsToArchiveOrg int64  `pretty:"Calls to Archive.org"`
-	URLsArchived      int64  `pretty:"URLs Archived"`
-	Interactions      int64  `pretty:"Interactions with the bot"`
-	TopDomains        string `pretty:"Top 5 Domains" inline:"false"`
-	ServersActive     int64  `pretty:"Active servers"`
-	ServersConfigured int64  `pretty:"Configured servers" global:"true"`
-}
-
-// domainStats is a slice of simple objects that specify a domain name
-// and a count, for use in stats commands to determine most
-// popular domains
-type domainStats []struct {
-	RequestDomainName string
-	Count             int
 }

@@ -125,7 +125,7 @@ func (bot *ArchiverBot) buildMessageResponse(m *discordgo.Message, newSnapshot b
 		}
 	}
 
-	messagesToSend, errs = bot.buildArchiveReply(archives, archivedLinks, messageUrls, sc, false)
+	messagesToSend, errs = bot.buildArchiveReply(archivedLinks, messageUrls, sc, false)
 
 	// Interactions don't populate the Author field, so we add that manually
 	if m.Author == nil {
@@ -140,22 +140,14 @@ func (bot *ArchiverBot) buildMessageResponse(m *discordgo.Message, newSnapshot b
 		}
 	}
 
-	for index, _ := range archivedLinks {
+	for index := range archivedLinks {
 		if len(archives) == index+1 {
 			archives[index].ResponseURL = archivedLinks[index]
 		}
 	}
 
 	// Create a call to Archiver API event
-	tx := bot.DB.Create(&ArchiveEventEvent{
-		UUID:           archives[0].ArchiveEventEventUUID,
-		AuthorId:       m.Author.ID,
-		AuthorUsername: m.Author.Username,
-		ChannelId:      m.ChannelID,
-		MessageId:      m.ID,
-		ServerID:       guild.ID,
-		ArchiveEvents:  archives,
-	})
+	tx := bot.DB.Create(&archives)
 
 	if tx.RowsAffected != 1 {
 		errs = append(errs, fmt.Errorf("unexpected number of rows affected inserting archive event: %v", tx.RowsAffected))
@@ -202,7 +194,11 @@ func (bot *ArchiverBot) buildInteractionResponse(i *discordgo.InteractionCreate,
 		}
 	}
 
-	archives, errs = bot.populateArchiveEventCache(messageUrls, false, discordgo.Guild{ID: "", Name: "ArchiveCommand"})
+	guild, err := bot.DG.Guild(i.Interaction.GuildID)
+	if err != nil {
+		guild.Name = "GuildLookupError"
+	}
+	archives, errs = bot.populateArchiveEventCache(messageUrls, false, *guild)
 	for _, err := range errs {
 		if err != nil {
 			log.Error("error populating archive cache: ", err)
@@ -230,7 +226,7 @@ func (bot *ArchiverBot) buildInteractionResponse(i *discordgo.InteractionCreate,
 		}
 	}
 
-	messagesToSend, errs = bot.buildArchiveReply(archives, archivedLinks, messageUrls, sc, true)
+	messagesToSend, errs = bot.buildArchiveReply(archivedLinks, messageUrls, sc, true)
 
 	for _, err := range errs {
 		if err != nil {
@@ -241,15 +237,7 @@ func (bot *ArchiverBot) buildInteractionResponse(i *discordgo.InteractionCreate,
 	// Don't create an event if there were no archives
 	if len(archives) > 0 {
 		// Create a call to Archiver API event
-		tx := bot.DB.Create(&ArchiveEventEvent{
-			UUID:           archives[0].ArchiveEventEventUUID,
-			AuthorId:       i.Interaction.Member.User.ID,
-			AuthorUsername: i.Interaction.Member.User.Username,
-			ChannelId:      i.Interaction.ChannelID,
-			MessageId:      i.Interaction.ID,
-			ServerID:       "DirectMessage",
-			ArchiveEvents:  archives,
-		})
+		tx := bot.DB.Create(&archives)
 
 		if tx.RowsAffected != 1 {
 			errs = append(errs, fmt.Errorf("unexpected number of rows affected inserting archive event: %v", tx.RowsAffected))
@@ -351,6 +339,7 @@ func (bot *ArchiverBot) executeArchiveEventRequest(archiveEvents *[]ArchiveEvent
 					log.Errorf("unable to get domain name for url: %v", archive.ResponseURL)
 				}
 				(*archiveEvents)[i].ResponseDomainName = domainName
+				(*archiveEvents)[i].ResponseURL = url
 			} else {
 				log.Info("could not get latest archive.org url for url: ", url)
 				continue
@@ -369,9 +358,9 @@ func (bot *ArchiverBot) executeArchiveEventRequest(archiveEvents *[]ArchiveEvent
 	return archivedLinks, errs
 }
 
-// executeArchiveRequest takes a slice of ArchiveEvents and returns a slice of
+// executeArchiveRequest takes a slice of archive links and returns a slice of
 // messages to send
-func (bot *ArchiverBot) buildArchiveReply(archives []ArchiveEvent, archivedLinks []string, messageUrls []string, sc ServerConfig, ephemeral bool) (messagesToSend []*discordgo.MessageSend, errs []error) {
+func (bot *ArchiverBot) buildArchiveReply(archivedLinks []string, messageUrls []string, sc ServerConfig, ephemeral bool) (messagesToSend []*discordgo.MessageSend, errs []error) {
 	var embeds []*discordgo.MessageEmbed
 	var components []discordgo.MessageComponent
 

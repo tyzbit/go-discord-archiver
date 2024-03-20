@@ -145,23 +145,8 @@ func (bot *ArchiverBot) updateServerSetting(guildID string, setting string,
 // column name (setting) and the value
 func (bot *ArchiverBot) respondToSettingsChoice(i *discordgo.InteractionCreate,
 	setting string, value interface{}) {
-	guild, err := bot.DG.Guild(i.Interaction.GuildID)
-	if err != nil {
-		log.Errorf("unable to look up guild ID %s", i.Interaction.GuildID)
-		return
-	}
-
 	sc, ok := bot.updateServerSetting(i.Interaction.GuildID, setting, value)
 	var interactionErr error
-
-	bot.createInteractionEvent(InteractionEvent{
-		UserID:        i.Member.User.ID,
-		Username:      i.Member.User.Username,
-		InteractionId: i.Message.ID,
-		ChannelId:     i.Message.ChannelID,
-		ServerID:      i.Interaction.GuildID,
-		ServerName:    guild.Name,
-	})
 
 	if !ok {
 		interactionErr = bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

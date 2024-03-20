@@ -29,9 +29,6 @@ var (
 		&bot.ServerRegistration{},
 		&bot.ServerConfig{},
 		&bot.ArchiveEvent{},
-		&bot.ArchiveEventEvent{},
-		&bot.MessageEvent{},
-		&bot.InteractionEvent{},
 	}
 
 	sqlitePath      string        = "/var/go-discord-archiver/local.sqlite"

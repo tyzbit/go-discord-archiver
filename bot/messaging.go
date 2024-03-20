@@ -28,13 +28,6 @@ func (bot *ArchiverBot) sendArchiveResponse(userMessage *discordgo.Message, mess
 		if gErr != nil {
 			return gErr
 		}
-		bot.createMessageEvent(MessageEvent{
-			AuthorId:       user.ID,
-			AuthorUsername: user.Username,
-			MessageId:      userMessage.ID,
-			ChannelId:      userMessage.ChannelID,
-			ServerID:       userMessage.GuildID,
-		})
 		log.Debugf("sending archive message response in %s(%s), calling user: %s(%s)",
 			guild.Name, guild.ID, username, userMessage.Member.User.ID)
 	}
@@ -77,13 +70,6 @@ func (bot *ArchiverBot) sendArchiveCommandResponse(i *discordgo.Interaction, mes
 		if gErr != nil {
 			return gErr
 		}
-		bot.createMessageEvent(MessageEvent{
-			AuthorId:       user.ID,
-			AuthorUsername: user.Username,
-			MessageId:      i.ID,
-			ChannelId:      i.ChannelID,
-			ServerID:       i.GuildID,
-		})
 		log.Debugf("sending archive message response in %s(%s), calling user: %s(%s)",
 			guild.Name, guild.ID, username, user.ID)
 	}

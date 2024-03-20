@@ -153,21 +153,6 @@ func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *disco
 		}
 
 		for _, messagesToSend := range replies {
-			if r.MessageReaction.GuildID != "" {
-				g, err := bot.DG.Guild(r.MessageReaction.GuildID)
-				if err != nil {
-					g.Name = "None"
-				}
-				bot.createMessageEvent(MessageEvent{
-					AuthorId:       r.Member.User.ID,
-					AuthorUsername: r.Member.User.Username,
-					MessageId:      r.MessageReaction.MessageID,
-					ChannelId:      r.MessageReaction.ChannelID,
-					ServerID:       r.MessageReaction.GuildID,
-					ServerName:     g.Name,
-				})
-			}
-
 			typingStop <- true
 			err := bot.sendArchiveResponse(m, messagesToSend)
 			if err != nil {
@@ -206,85 +191,6 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 		globals.Archive:                   func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, false, true) },
 		globals.ArchiveMessage:            func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, false, true) },
 		globals.ArchiveMessageNewSnapshot: func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, true, true) },
-		// Stats does not create an InteractionEvent
-		globals.Stats: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			directMessage := (i.GuildID == "")
-			var stats botStats
-			logMessage := ""
-			if !directMessage {
-				log.Debug("handling stats request")
-				stats = bot.getServerStats(i.GuildID)
-				guild, err := bot.DG.Guild(i.GuildID)
-				if err != nil {
-					log.Errorf("unable to look up server by id: %v", i.GuildID+", "+fmt.Sprintf("%v", err))
-					return
-				}
-				logMessage = "sending stats response to " + i.Member.User.Username + "(" + i.Member.User.ID + ") in " +
-					guild.Name + "(" + guild.ID + ")"
-			} else {
-				log.Debug("handling stats DM request")
-				// We can be sure now the request was a direct message
-				// Deny by default
-				administrator := false
-
-			out:
-				for _, id := range bot.Config.AdminIds {
-					if i.User.ID == id {
-						administrator = true
-
-						// This prevents us from checking all IDs now that
-						// we found a match but is a fairly ineffectual
-						// optimization since config.AdminIds will probably
-						// only have dozens of IDs at most
-						break out
-					}
-				}
-
-				if !administrator {
-					log.Errorf("did not respond to global stats command from %v(%v), because user is not an administrator",
-						i.User.Username, i.User.ID)
-
-					err := bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-						Type: discordgo.InteractionResponseChannelMessageWithSource,
-						Data: &discordgo.InteractionResponseData{
-							Embeds: []*discordgo.MessageEmbed{
-								{
-									Title: "Stats are not available in DMs",
-									Color: globals.FrenchGray,
-								},
-							},
-						},
-					})
-
-					if err != nil {
-						log.Errorf("error responding to slash command "+globals.Stats+", err: %v", err)
-					}
-					return
-				}
-				stats = bot.getGlobalStats()
-				logMessage = "sending global " + globals.Stats + " response to " + i.User.Username + "(" + i.User.ID + ")"
-			}
-
-			log.Info(logMessage)
-
-			err := bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Flags: discordgo.MessageFlagsEphemeral,
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Title:  "🏛️ Archive.org Bot Stats",
-							Fields: structToPrettyDiscordFields(stats, directMessage),
-							Color:  globals.FrenchGray,
-						},
-					},
-				},
-			})
-
-			if err != nil {
-				log.Errorf("error responding to slash command "+globals.Stats+", err: %v", err)
-			}
-		},
 		globals.Settings: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			log.Debug("handling settings request")
 			if i.GuildID == "" {
@@ -302,15 +208,6 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 				if err != nil {
 					guild.Name = "GuildLookupError"
 				}
-
-				bot.createInteractionEvent(InteractionEvent{
-					UserID:        i.Interaction.Member.User.ID,
-					Username:      i.Interaction.Member.User.Username,
-					InteractionId: i.ID,
-					ChannelId:     i.Interaction.ChannelID,
-					ServerID:      i.Interaction.GuildID,
-					ServerName:    guild.Name,
-				})
 
 				sc := bot.getServerConfig(i.GuildID)
 				resp := bot.SettingsIntegrationResponse(sc)
@@ -336,16 +233,8 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 
 			guild, err := bot.DG.Guild(i.Interaction.GuildID)
 			if err != nil {
-				guild.Name = "None"
+				guild.Name = "GuildLookupError"
 			}
-			bot.createInteractionEvent(InteractionEvent{
-				UserID:        i.Member.User.ID,
-				Username:      i.Member.User.Username,
-				InteractionId: i.Message.ID,
-				ChannelId:     i.Message.ChannelID,
-				ServerID:      guild.ID,
-				ServerName:    guild.Name,
-			})
 
 			interactionErr := bot.DG.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseUpdateMessage,
@@ -402,14 +291,6 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 						guild.ID = "0"
 					}
 				}
-				bot.createMessageEvent(MessageEvent{
-					AuthorId:       s.State.User.ID,
-					AuthorUsername: i.Member.User.Username,
-					MessageId:      i.Message.ID,
-					ChannelId:      i.Message.ChannelID,
-					ServerID:       guild.ID,
-					ServerName:     guild.Name,
-				})
 
 				err = bot.sendArchiveResponse(&m, messagesToSend)
 
@@ -481,38 +362,6 @@ func (bot *ArchiverBot) archiveInteraction(i *discordgo.InteractionCreate, newSn
 			Flags: flags,
 		},
 	})
-	guild := &discordgo.Guild{}
-	var err error
-	if i.GuildID == "" {
-		guild.Name = "DirectMessage"
-	} else {
-		guild, err = bot.DG.Guild(i.Interaction.GuildID)
-		if err != nil {
-			guild.Name = "GuildLookupError"
-		}
-	}
-
-	// If i.Interaction.User is not nil, then this is a DM
-	if i.Interaction.User != nil {
-		bot.createInteractionEvent(InteractionEvent{
-			UserID:        i.Interaction.User.ID,
-			Username:      i.Interaction.User.Username,
-			InteractionId: i.ID,
-			ChannelId:     i.ChannelID,
-			ServerID:      i.GuildID,
-			ServerName:    guild.Name,
-		})
-	} else {
-		bot.createInteractionEvent(InteractionEvent{
-			UserID:        i.Interaction.Member.User.ID,
-			Username:      i.Interaction.Member.User.Username,
-			InteractionId: i.ID,
-			ChannelId:     i.ChannelID,
-			ServerID:      i.GuildID,
-			ServerName:    guild.Name,
-		})
-	}
-
 	messagesToSend, errs := bot.buildInteractionResponse(i, newSnapshot)
 	for _, err := range errs {
 		if err != nil {
@@ -525,34 +374,7 @@ func (bot *ArchiverBot) archiveInteraction(i *discordgo.InteractionCreate, newSn
 		return
 	}
 
-	for index, message := range messagesToSend {
-		if len(errs) > 0 {
-			if errs[index] != nil {
-				guild.Name = "None"
-				guild.ID = "0"
-			}
-		}
-
-		if i.Interaction.User != nil {
-			bot.createMessageEvent(MessageEvent{
-				AuthorId:       i.Interaction.User.ID,
-				AuthorUsername: i.Interaction.User.Username,
-				MessageId:      "",
-				ChannelId:      i.Interaction.ChannelID,
-				ServerID:       guild.ID,
-				ServerName:     guild.Name,
-			})
-		} else {
-			bot.createMessageEvent(MessageEvent{
-				AuthorId:       i.Interaction.Member.User.ID,
-				AuthorUsername: i.Interaction.Member.User.Username,
-				MessageId:      "",
-				ChannelId:      i.Interaction.ChannelID,
-				ServerID:       guild.ID,
-				ServerName:     guild.Name,
-			})
-		}
-
+	for _, message := range messagesToSend {
 		if message == nil {
 			log.Errorf("empty message")
 		}

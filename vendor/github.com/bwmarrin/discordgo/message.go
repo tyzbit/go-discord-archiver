@@ -148,8 +148,8 @@ type Message struct {
 	// The thread that was started from this message, includes thread member object
 	Thread *Channel `json:"thread,omitempty"`
 
-	// An array of Sticker objects, if any were sent.
-	StickerItems []*Sticker `json:"sticker_items"`
+	// An array of StickerItem objects, representing sent stickers, if there were any.
+	StickerItems []*StickerItem `json:"sticker_items"`
 }
 
 // UnmarshalJSON is a helper function to unmarshal the Message.

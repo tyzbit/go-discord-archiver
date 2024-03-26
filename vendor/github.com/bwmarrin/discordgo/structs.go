@@ -656,6 +656,13 @@ type Sticker struct {
 	SortValue   int           `json:"sort_value"`
 }
 
+// StickerItem represents the smallest amount of data required to render a sticker. A partial sticker object.
+type StickerItem struct {
+	ID         string        `json:"id"`
+	Name       string        `json:"name"`
+	FormatType StickerFormat `json:"format_type"`
+}
+
 // StickerPack represents a pack of standard stickers.
 type StickerPack struct {
 	ID             string     `json:"id"`
@@ -1267,6 +1274,14 @@ type UserGuild struct {
 	Owner       bool           `json:"owner"`
 	Permissions int64          `json:"permissions,string"`
 	Features    []GuildFeature `json:"features"`
+
+	// Approximate number of members in this guild.
+	// NOTE: this field is only filled when withCounts is true.
+	ApproximateMemberCount int `json:"approximate_member_count"`
+
+	// Approximate number of non-offline members in this guild.
+	// NOTE: this field is only filled when withCounts is true.
+	ApproximatePresenceCount int `json:"approximate_presence_count"`
 }
 
 // GuildFeature indicates the presence of a feature in a guild
@@ -1355,7 +1370,22 @@ type Role struct {
 
 	// The emoji assigned to this role.
 	UnicodeEmoji string `json:"unicode_emoji"`
+
+	// The flags of the role, which describe its extra features.
+	// This is a combination of bit masks; the presence of a certain flag can
+	// be checked by performing a bitwise AND between this int and the flag.
+	Flags RoleFlags `json:"flags"`
 }
+
+// RoleFlags represent the flags of a Role.
+// https://discord.com/developers/docs/topics/permissions#role-object-role-flags
+type RoleFlags int
+
+// Block containing known RoleFlags values.
+const (
+	// RoleFlagInPrompt indicates whether the Role is selectable by members in an onboarding prompt.
+	RoleFlagInPrompt RoleFlags = 1 << 0
+)
 
 // Mention returns a string which mentions the role
 func (r *Role) Mention() string {
@@ -1469,6 +1499,22 @@ type Assets struct {
 	SmallText    string `json:"small_text,omitempty"`
 }
 
+// MemberFlags represent flags of a guild member.
+// https://discord.com/developers/docs/resources/guild#guild-member-object-guild-member-flags
+type MemberFlags int
+
+// Block containing known MemberFlags values.
+const (
+	// MemberFlagDidRejoin indicates whether the Member has left and rejoined the guild.
+	MemberFlagDidRejoin MemberFlags = 1 << 0
+	// MemberFlagCompletedOnboarding indicates whether the Member has completed onboarding.
+	MemberFlagCompletedOnboarding MemberFlags = 1 << 1
+	// MemberFlagBypassesVerification indicates whether the Member is exempt from guild verification requirements.
+	MemberFlagBypassesVerification MemberFlags = 1 << 2
+	// MemberFlagStartedOnboarding indicates whether the Member has started onboarding.
+	MemberFlagStartedOnboarding MemberFlags = 1 << 3
+)
+
 // A Member stores user information for Guild members. A guild
 // member represents a certain user's presence in a guild.
 type Member struct {
@@ -1498,6 +1544,10 @@ type Member struct {
 
 	// When the user used their Nitro boost on the server
 	PremiumSince *time.Time `json:"premium_since"`
+
+	// The flags of this member. This is a combination of bit masks; the presence of a certain
+	// flag can be checked by performing a bitwise AND between this int and the flag.
+	Flags MemberFlags `json:"flags"`
 
 	// Is true while the member hasn't accepted the membership screen.
 	Pending bool `json:"pending"`

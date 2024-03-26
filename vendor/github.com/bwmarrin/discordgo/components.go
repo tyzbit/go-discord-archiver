@@ -10,14 +10,10 @@ type ComponentType uint
 
 // MessageComponent types.
 const (
-	ActionsRowComponent            ComponentType = 1
-	ButtonComponent                ComponentType = 2
-	SelectMenuComponent            ComponentType = 3
-	TextInputComponent             ComponentType = 4
-	UserSelectMenuComponent        ComponentType = 5
-	RoleSelectMenuComponent        ComponentType = 6
-	MentionableSelectMenuComponent ComponentType = 7
-	ChannelSelectMenuComponent     ComponentType = 8
+	ActionsRowComponent ComponentType = 1
+	ButtonComponent     ComponentType = 2
+	SelectMenuComponent ComponentType = 3
+	TextInputComponent  ComponentType = 4
 )
 
 // MessageComponent is a base interface for all message components.
@@ -45,8 +41,7 @@ func (umc *unmarshalableMessageComponent) UnmarshalJSON(src []byte) error {
 		umc.MessageComponent = &ActionsRow{}
 	case ButtonComponent:
 		umc.MessageComponent = &Button{}
-	case SelectMenuComponent, ChannelSelectMenuComponent, UserSelectMenuComponent,
-		RoleSelectMenuComponent, MentionableSelectMenuComponent:
+	case SelectMenuComponent:
 		umc.MessageComponent = &SelectMenu{}
 	case TextInputComponent:
 		umc.MessageComponent = &TextInput{}
@@ -132,10 +127,10 @@ type ComponentEmoji struct {
 
 // Button represents button component.
 type Button struct {
-	Label    string          `json:"label"`
-	Style    ButtonStyle     `json:"style"`
-	Disabled bool            `json:"disabled"`
-	Emoji    *ComponentEmoji `json:"emoji,omitempty"`
+	Label    string         `json:"label"`
+	Style    ButtonStyle    `json:"style"`
+	Disabled bool           `json:"disabled"`
+	Emoji    ComponentEmoji `json:"emoji"`
 
 	// NOTE: Only button with LinkButton style can have link. Also, URL is mutually exclusive with CustomID.
 	URL      string `json:"url,omitempty"`
@@ -150,12 +145,19 @@ func (b Button) MarshalJSON() ([]byte, error) {
 		b.Style = PrimaryButton
 	}
 
+	var emoji *ComponentEmoji
+	if b.Emoji.ID != "" || b.Emoji.Name != "" {
+		emoji = &b.Emoji
+	}
+
 	return Marshal(struct {
 		button
-		Type ComponentType `json:"type"`
+		Type  ComponentType   `json:"type"`
+		Emoji *ComponentEmoji `json:"emoji,omitempty"`
 	}{
 		button: button(b),
 		Type:   b.Type(),
+		Emoji:  emoji,
 	})
 }
 
@@ -166,49 +168,34 @@ func (Button) Type() ComponentType {
 
 // SelectMenuOption represents an option for a select menu.
 type SelectMenuOption struct {
-	Label       string          `json:"label,omitempty"`
-	Value       string          `json:"value"`
-	Description string          `json:"description"`
-	Emoji       *ComponentEmoji `json:"emoji,omitempty"`
+	Label       string         `json:"label,omitempty"`
+	Value       string         `json:"value"`
+	Description string         `json:"description"`
+	Emoji       ComponentEmoji `json:"emoji"`
 	// Determines whenever option is selected by default or not.
 	Default bool `json:"default"`
 }
 
-// SelectMenuDefaultValueType represents the type of an entity selected by default in auto-populated select menus.
-type SelectMenuDefaultValueType string
+// MarshalJSON is a helper function to marshal SelectMenuOption.
+func (o SelectMenuOption) MarshalJSON() ([]byte, error) {
+	type selectMenuOption SelectMenuOption
 
-// SelectMenuDefaultValue types.
-const (
-	SelectMenuDefaultValueUser    SelectMenuDefaultValueType = "user"
-	SelectMenuDefaultValueRole    SelectMenuDefaultValueType = "role"
-	SelectMenuDefaultValueChannel SelectMenuDefaultValueType = "channel"
-)
+	var emoji *ComponentEmoji
+	if o.Emoji.ID != "" || o.Emoji.Name != "" {
+		emoji = &o.Emoji
+	}
 
-// SelectMenuDefaultValue represents an entity selected by default in auto-populated select menus.
-type SelectMenuDefaultValue struct {
-	// ID of the entity.
-	ID string `json:"id"`
-	// Type of the entity.
-	Type SelectMenuDefaultValueType `json:"type"`
+	return Marshal(struct {
+		selectMenuOption
+		Emoji *ComponentEmoji `json:"emoji,omitempty"`
+	}{
+		selectMenuOption: selectMenuOption(o),
+		Emoji:            emoji,
+	})
 }
-
-// SelectMenuType represents select menu type.
-type SelectMenuType ComponentType
-
-// SelectMenu types.
-const (
-	StringSelectMenu      = SelectMenuType(SelectMenuComponent)
-	UserSelectMenu        = SelectMenuType(UserSelectMenuComponent)
-	RoleSelectMenu        = SelectMenuType(RoleSelectMenuComponent)
-	MentionableSelectMenu = SelectMenuType(MentionableSelectMenuComponent)
-	ChannelSelectMenu     = SelectMenuType(ChannelSelectMenuComponent)
-)
 
 // SelectMenu represents select menu component.
 type SelectMenu struct {
-	// Type of the select menu.
-	MenuType SelectMenuType `json:"type,omitempty"`
-	// CustomID is a developer-defined identifier for the select menu.
 	CustomID string `json:"custom_id,omitempty"`
 	// The text which will be shown in the menu if there's no default options or all options was deselected and component was closed.
 	Placeholder string `json:"placeholder"`
@@ -216,36 +203,26 @@ type SelectMenu struct {
 	MinValues *int `json:"min_values,omitempty"`
 	// This value determines the maximal amount of selected items in the menu.
 	// If MaxValues or MinValues are greater than one then the user can select multiple items in the component.
-	MaxValues int `json:"max_values,omitempty"`
-	// List of default values for auto-populated select menus.
-	// NOTE: Number of entries should be in the range defined by MinValues and MaxValues.
-	DefaultValues []SelectMenuDefaultValue `json:"default_values,omitempty"`
-
-	Options  []SelectMenuOption `json:"options,omitempty"`
-	Disabled bool               `json:"disabled"`
-
-	// NOTE: Can only be used in SelectMenu with Channel menu type.
-	ChannelTypes []ChannelType `json:"channel_types,omitempty"`
+	MaxValues int                `json:"max_values,omitempty"`
+	Options   []SelectMenuOption `json:"options"`
+	Disabled  bool               `json:"disabled"`
 }
 
 // Type is a method to get the type of a component.
-func (s SelectMenu) Type() ComponentType {
-	if s.MenuType != 0 {
-		return ComponentType(s.MenuType)
-	}
+func (SelectMenu) Type() ComponentType {
 	return SelectMenuComponent
 }
 
 // MarshalJSON is a method for marshaling SelectMenu to a JSON object.
-func (s SelectMenu) MarshalJSON() ([]byte, error) {
+func (m SelectMenu) MarshalJSON() ([]byte, error) {
 	type selectMenu SelectMenu
 
 	return Marshal(struct {
 		selectMenu
 		Type ComponentType `json:"type"`
 	}{
-		selectMenu: selectMenu(s),
-		Type:       s.Type(),
+		selectMenu: selectMenu(m),
+		Type:       m.Type(),
 	})
 }
 

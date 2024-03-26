@@ -320,7 +320,7 @@ func (s *Session) heartbeat(wsConn *websocket.Conn, listening <-chan interface{}
 	}
 }
 
-// UpdateStatusData is provided to UpdateStatusComplex()
+// UpdateStatusData ia provided to UpdateStatusComplex()
 type UpdateStatusData struct {
 	IdleSince  *int        `json:"since"`
 	Activities []*Activity `json:"activities"`
@@ -361,14 +361,6 @@ func (s *Session) UpdateGameStatus(idle int, name string) (err error) {
 	return s.UpdateStatusComplex(*newUpdateStatusData(idle, ActivityTypeGame, name, ""))
 }
 
-// UpdateWatchStatus is used to update the user's watch status.
-// If idle>0 then set status to idle.
-// If name!="" then set movie/stream.
-// if otherwise, set status to active, and no activity.
-func (s *Session) UpdateWatchStatus(idle int, name string) (err error) {
-	return s.UpdateStatusComplex(*newUpdateStatusData(idle, ActivityTypeWatching, name, ""))
-}
-
 // UpdateStreamingStatus is used to update the user's streaming status.
 // If idle>0 then set status to idle.
 // If name!="" then set game.
@@ -387,26 +379,6 @@ func (s *Session) UpdateStreamingStatus(idle int, name string, url string) (err 
 // Else, set user to active and no activity.
 func (s *Session) UpdateListeningStatus(name string) (err error) {
 	return s.UpdateStatusComplex(*newUpdateStatusData(0, ActivityTypeListening, name, ""))
-}
-
-// UpdateCustomStatus is used to update the user's custom status.
-// If state!="" then set the custom status.
-// Else, set user to active and remove the custom status.
-func (s *Session) UpdateCustomStatus(state string) (err error) {
-	data := UpdateStatusData{
-		Status: "online",
-	}
-
-	if state != "" {
-		// Discord requires a non-empty activity name, therefore we provide "Custom Status" as a placeholder.
-		data.Activities = []*Activity{{
-			Name:  "Custom Status",
-			Type:  ActivityTypeCustom,
-			State: state,
-		}}
-	}
-
-	return s.UpdateStatusComplex(data)
 }
 
 // UpdateStatusComplex allows for sending the raw status update data untouched by discordgo.
@@ -882,18 +854,17 @@ func (s *Session) reconnect() {
 				// However, there seems to be cases where something "weird"
 				// happens.  So we're doing this for now just to improve
 				// stability in those edge cases.
-				if s.ShouldReconnectVoiceOnSessionError {
-					s.RLock()
-					defer s.RUnlock()
-					for _, v := range s.VoiceConnections {
+				s.RLock()
+				defer s.RUnlock()
+				for _, v := range s.VoiceConnections {
 
-						s.log(LogInformational, "reconnecting voice connection to guild %s", v.GuildID)
-						go v.reconnect()
+					s.log(LogInformational, "reconnecting voice connection to guild %s", v.GuildID)
+					go v.reconnect()
 
-						// This is here just to prevent violently spamming the
-						// voice reconnects
-						time.Sleep(1 * time.Second)
-					}
+					// This is here just to prevent violently spamming the
+					// voice reconnects
+					time.Sleep(1 * time.Second)
+
 				}
 				return
 			}

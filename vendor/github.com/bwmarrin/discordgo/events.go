@@ -36,13 +36,13 @@ type Event struct {
 
 // A Ready stores all data for the websocket READY event.
 type Ready struct {
-	Version         int          `json:"v"`
-	SessionID       string       `json:"session_id"`
-	User            *User        `json:"user"`
-	Shard           *[2]int      `json:"shard"`
-	Application     *Application `json:"application"`
-	Guilds          []*Guild     `json:"guilds"`
-	PrivateChannels []*Channel   `json:"private_channels"`
+	Version         int        `json:"v"`
+	SessionID       string     `json:"session_id"`
+	User            *User      `json:"user"`
+	Guilds          []*Guild   `json:"guilds"`
+	PrivateChannels []*Channel `json:"private_channels"`
+
+	// TODO: Application and Shard
 }
 
 // ChannelCreate is the data for a ChannelCreate event.
@@ -150,7 +150,6 @@ type GuildMemberAdd struct {
 // GuildMemberUpdate is the data for a GuildMemberUpdate event.
 type GuildMemberUpdate struct {
 	*Member
-	BeforeUpdate *Member `json:"-"`
 }
 
 // GuildMemberRemove is the data for a GuildMemberRemove event.
@@ -400,9 +399,4 @@ type AutoModerationActionExecution struct {
 	Content              string                        `json:"content"`
 	MatchedKeyword       string                        `json:"matched_keyword"`
 	MatchedContent       string                        `json:"matched_content"`
-}
-
-// GuildAuditLogEntryCreate is the data for a GuildAuditLogEntryCreate event.
-type GuildAuditLogEntryCreate struct {
-	*AuditLogEntry
 }

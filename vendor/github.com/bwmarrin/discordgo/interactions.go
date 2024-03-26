@@ -42,7 +42,6 @@ type ApplicationCommand struct {
 	DefaultPermission        *bool  `json:"default_permission,omitempty"`
 	DefaultMemberPermissions *int64 `json:"default_member_permissions,string,omitempty"`
 	DMPermission             *bool  `json:"dm_permission,omitempty"`
-	NSFW                     *bool  `json:"nsfw,omitempty"`
 
 	// NOTE: Chat commands only. Otherwise it mustn't be set.
 
@@ -314,10 +313,9 @@ type InteractionData interface {
 
 // ApplicationCommandInteractionData contains the data of application command interaction.
 type ApplicationCommandInteractionData struct {
-	ID          string                                     `json:"id"`
-	Name        string                                     `json:"name"`
-	CommandType ApplicationCommandType                     `json:"type"`
-	Resolved    *ApplicationCommandInteractionDataResolved `json:"resolved"`
+	ID       string                                     `json:"id"`
+	Name     string                                     `json:"name"`
+	Resolved *ApplicationCommandInteractionDataResolved `json:"resolved"`
 
 	// Slash command options
 	Options []*ApplicationCommandInteractionDataOption `json:"options"`
@@ -345,20 +343,11 @@ func (ApplicationCommandInteractionData) Type() InteractionType {
 
 // MessageComponentInteractionData contains the data of message component interaction.
 type MessageComponentInteractionData struct {
-	CustomID      string                                  `json:"custom_id"`
-	ComponentType ComponentType                           `json:"component_type"`
-	Resolved      MessageComponentInteractionDataResolved `json:"resolved"`
+	CustomID      string        `json:"custom_id"`
+	ComponentType ComponentType `json:"component_type"`
 
 	// NOTE: Only filled when ComponentType is SelectMenuComponent (3). Otherwise is nil.
 	Values []string `json:"values"`
-}
-
-// MessageComponentInteractionDataResolved contains the resolved data of selected option.
-type MessageComponentInteractionDataResolved struct {
-	Users    map[string]*User    `json:"users"`
-	Members  map[string]*Member  `json:"members"`
-	Roles    map[string]*Role    `json:"roles"`
-	Channels map[string]*Channel `json:"channels"`
 }
 
 // Type returns the type of interaction data.
@@ -483,7 +472,7 @@ func (o ApplicationCommandInteractionDataOption) RoleValue(s *Session, gID strin
 		return &Role{ID: roleID}
 	}
 
-	r, err := s.State.Role(gID, roleID)
+	r, err := s.State.Role(roleID, gID)
 	if err != nil {
 		roles, err := s.GuildRoles(gID)
 		if err == nil {
@@ -554,7 +543,6 @@ type InteractionResponseData struct {
 	Embeds          []*MessageEmbed         `json:"embeds"`
 	AllowedMentions *MessageAllowedMentions `json:"allowed_mentions,omitempty"`
 	Files           []*File                 `json:"-"`
-	Attachments     *[]*MessageAttachment   `json:"attachments,omitempty"`
 
 	// NOTE: only MessageFlagsSuppressEmbeds and MessageFlagsEphemeral can be set.
 	Flags MessageFlags `json:"flags,omitempty"`

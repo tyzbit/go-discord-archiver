@@ -128,8 +128,8 @@ func (bot *ArchiverBot) removeRetryButtonAfterSleep(message *discordgo.Message) 
 	time.Sleep(time.Duration(sleep) * time.Second)
 	me := discordgo.MessageEdit{
 		// Remove the components (button)
-		Components: &[]discordgo.MessageComponent{},
-		Embeds:     &message.Embeds,
+		Components: []discordgo.MessageComponent{},
+		Embeds:     message.Embeds,
 		ID:         message.ID,
 		Channel:    message.ChannelID,
 	}

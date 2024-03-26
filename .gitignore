@@ -1,6 +1,6 @@
 .env
 .DS_Store
 .vscode
-__debug_bin
+__debug_bin*
 go-discord-archiver*
 local.db

@@ -224,7 +224,7 @@ gorm.io/driver/mysql
 # gorm.io/driver/sqlite v1.5.5
 ## explicit; go 1.20
 gorm.io/driver/sqlite
-# gorm.io/gorm v1.25.8
+# gorm.io/gorm v1.25.9
 ## explicit; go 1.18
 gorm.io/gorm
 gorm.io/gorm/callbacks

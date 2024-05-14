@@ -17,7 +17,6 @@ import (
 	"math"
 	"net/http"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -42,6 +41,9 @@ type Session struct {
 
 	// Should the session reconnect the websocket on errors.
 	ShouldReconnectOnError bool
+
+	// Should voice connections reconnect on a session reconnect.
+	ShouldReconnectVoiceOnSessionError bool
 
 	// Should the session retry requests when rate limited.
 	ShouldRetryOnRateLimit bool
@@ -156,6 +158,38 @@ type Application struct {
 	Flags               int      `json:"flags,omitempty"`
 }
 
+// ApplicationRoleConnectionMetadataType represents the type of application role connection metadata.
+type ApplicationRoleConnectionMetadataType int
+
+// Application role connection metadata types.
+const (
+	ApplicationRoleConnectionMetadataIntegerLessThanOrEqual     ApplicationRoleConnectionMetadataType = 1
+	ApplicationRoleConnectionMetadataIntegerGreaterThanOrEqual  ApplicationRoleConnectionMetadataType = 2
+	ApplicationRoleConnectionMetadataIntegerEqual               ApplicationRoleConnectionMetadataType = 3
+	ApplicationRoleConnectionMetadataIntegerNotEqual            ApplicationRoleConnectionMetadataType = 4
+	ApplicationRoleConnectionMetadataDatetimeLessThanOrEqual    ApplicationRoleConnectionMetadataType = 5
+	ApplicationRoleConnectionMetadataDatetimeGreaterThanOrEqual ApplicationRoleConnectionMetadataType = 6
+	ApplicationRoleConnectionMetadataBooleanEqual               ApplicationRoleConnectionMetadataType = 7
+	ApplicationRoleConnectionMetadataBooleanNotEqual            ApplicationRoleConnectionMetadataType = 8
+)
+
+// ApplicationRoleConnectionMetadata stores application role connection metadata.
+type ApplicationRoleConnectionMetadata struct {
+	Type                     ApplicationRoleConnectionMetadataType `json:"type"`
+	Key                      string                                `json:"key"`
+	Name                     string                                `json:"name"`
+	NameLocalizations        map[Locale]string                     `json:"name_localizations"`
+	Description              string                                `json:"description"`
+	DescriptionLocalizations map[Locale]string                     `json:"description_localizations"`
+}
+
+// ApplicationRoleConnection represents the role connection that an application has attached to a user.
+type ApplicationRoleConnection struct {
+	PlatformName     string            `json:"platform_name"`
+	PlatformUsername string            `json:"platform_username"`
+	Metadata         map[string]string `json:"metadata"`
+}
+
 // UserConnection is a Connection returned from the UserConnections endpoint
 type UserConnection struct {
 	ID           string         `json:"id"`
@@ -254,6 +288,44 @@ const (
 	ChannelTypeGuildPublicThread  ChannelType = 11
 	ChannelTypeGuildPrivateThread ChannelType = 12
 	ChannelTypeGuildStageVoice    ChannelType = 13
+	ChannelTypeGuildDirectory     ChannelType = 14
+	ChannelTypeGuildForum         ChannelType = 15
+	ChannelTypeGuildMedia         ChannelType = 16
+)
+
+// ChannelFlags represent flags of a channel/thread.
+type ChannelFlags int
+
+// Block containing known ChannelFlags values.
+const (
+	// ChannelFlagPinned indicates whether the thread is pinned in the forum channel.
+	// NOTE: forum threads only.
+	ChannelFlagPinned ChannelFlags = 1 << 1
+	// ChannelFlagRequireTag indicates whether a tag is required to be specified when creating a thread.
+	// NOTE: forum channels only.
+	ChannelFlagRequireTag ChannelFlags = 1 << 4
+)
+
+// ForumSortOrderType represents sort order of a forum channel.
+type ForumSortOrderType int
+
+const (
+	// ForumSortOrderLatestActivity sorts posts by activity.
+	ForumSortOrderLatestActivity ForumSortOrderType = 0
+	// ForumSortOrderCreationDate sorts posts by creation time (from most recent to oldest).
+	ForumSortOrderCreationDate ForumSortOrderType = 1
+)
+
+// ForumLayout represents layout of a forum channel.
+type ForumLayout int
+
+const (
+	// ForumLayoutNotSet represents no default layout.
+	ForumLayoutNotSet ForumLayout = 0
+	// ForumLayoutListView displays forum posts as a list.
+	ForumLayoutListView ForumLayout = 1
+	// ForumLayoutGalleryView displays forum posts as a collection of tiles.
+	ForumLayoutGalleryView ForumLayout = 2
 )
 
 // A Channel holds all data related to an individual Discord channel.
@@ -332,6 +404,30 @@ type Channel struct {
 
 	// All thread members. State channels only.
 	Members []*ThreadMember `json:"-"`
+
+	// Channel flags.
+	Flags ChannelFlags `json:"flags"`
+
+	// The set of tags that can be used in a forum channel.
+	AvailableTags []ForumTag `json:"available_tags"`
+
+	// The IDs of the set of tags that have been applied to a thread in a forum channel.
+	AppliedTags []string `json:"applied_tags"`
+
+	// Emoji to use as the default reaction to a forum post.
+	DefaultReactionEmoji ForumDefaultReaction `json:"default_reaction_emoji"`
+
+	// The initial RateLimitPerUser to set on newly created threads in a channel.
+	// This field is copied to the thread at creation time and does not live update.
+	DefaultThreadRateLimitPerUser int `json:"default_thread_rate_limit_per_user"`
+
+	// The default sort order type used to order posts in forum channels.
+	// Defaults to null, which indicates a preferred sort order hasn't been set by a channel admin.
+	DefaultSortOrder *ForumSortOrderType `json:"default_sort_order"`
+
+	// The default forum layout view used to display posts in forum channels.
+	// Defaults to ForumLayoutNotSet, which indicates a layout view has not been set by a channel admin.
+	DefaultForumLayout ForumLayout `json:"default_forum_layout"`
 }
 
 // Mention returns a string which mentions the channel
@@ -346,15 +442,17 @@ func (c *Channel) IsThread() bool {
 
 // A ChannelEdit holds Channel Field data for a channel edit.
 type ChannelEdit struct {
-	Name                 string                 `json:"name,omitempty"`
-	Topic                string                 `json:"topic,omitempty"`
-	NSFW                 *bool                  `json:"nsfw,omitempty"`
-	Position             int                    `json:"position"`
-	Bitrate              int                    `json:"bitrate,omitempty"`
-	UserLimit            int                    `json:"user_limit,omitempty"`
-	PermissionOverwrites []*PermissionOverwrite `json:"permission_overwrites,omitempty"`
-	ParentID             string                 `json:"parent_id,omitempty"`
-	RateLimitPerUser     *int                   `json:"rate_limit_per_user,omitempty"`
+	Name                          string                 `json:"name,omitempty"`
+	Topic                         string                 `json:"topic,omitempty"`
+	NSFW                          *bool                  `json:"nsfw,omitempty"`
+	Position                      *int                   `json:"position,omitempty"`
+	Bitrate                       int                    `json:"bitrate,omitempty"`
+	UserLimit                     int                    `json:"user_limit,omitempty"`
+	PermissionOverwrites          []*PermissionOverwrite `json:"permission_overwrites,omitempty"`
+	ParentID                      string                 `json:"parent_id,omitempty"`
+	RateLimitPerUser              *int                   `json:"rate_limit_per_user,omitempty"`
+	Flags                         *ChannelFlags          `json:"flags,omitempty"`
+	DefaultThreadRateLimitPerUser *int                   `json:"default_thread_rate_limit_per_user,omitempty"`
 
 	// NOTE: threads only
 
@@ -362,6 +460,16 @@ type ChannelEdit struct {
 	AutoArchiveDuration int   `json:"auto_archive_duration,omitempty"`
 	Locked              *bool `json:"locked,omitempty"`
 	Invitable           *bool `json:"invitable,omitempty"`
+
+	// NOTE: forum channels only
+
+	AvailableTags        *[]ForumTag           `json:"available_tags,omitempty"`
+	DefaultReactionEmoji *ForumDefaultReaction `json:"default_reaction_emoji,omitempty"`
+	DefaultSortOrder     *ForumSortOrderType   `json:"default_sort_order,omitempty"` // TODO: null
+	DefaultForumLayout   *ForumLayout          `json:"default_forum_layout,omitempty"`
+
+	// NOTE: forum threads only
+	AppliedTags *[]string `json:"applied_tags,omitempty"`
 }
 
 // A ChannelFollow holds data returned after following a news channel
@@ -395,6 +503,9 @@ type ThreadStart struct {
 	Type                ChannelType `json:"type,omitempty"`
 	Invitable           bool        `json:"invitable"`
 	RateLimitPerUser    int         `json:"rate_limit_per_user,omitempty"`
+
+	// NOTE: forum threads only
+	AppliedTags []string `json:"applied_tags,omitempty"`
 }
 
 // ThreadMetadata contains a number of thread-specific channel fields that are not needed by other channel types.
@@ -421,7 +532,11 @@ type ThreadMember struct {
 	// The time the current user last joined the thread
 	JoinTimestamp time.Time `json:"join_timestamp"`
 	// Any user-thread settings, currently only used for notifications
-	Flags int
+	Flags int `json:"flags"`
+	// Additional information about the user.
+	// NOTE: only present if the withMember parameter is set to true
+	// when calling Session.ThreadMembers or Session.ThreadMember.
+	Member *Member `json:"member,omitempty"`
 }
 
 // ThreadsList represents a list of threads alongisde with thread member objects for the current user.
@@ -438,6 +553,24 @@ type AddedThreadMember struct {
 	Presence *Presence `json:"presence"`
 }
 
+// ForumDefaultReaction specifies emoji to use as the default reaction to a forum post.
+// NOTE: Exactly one of EmojiID and EmojiName must be set.
+type ForumDefaultReaction struct {
+	// The id of a guild's custom emoji.
+	EmojiID string `json:"emoji_id,omitempty"`
+	// The unicode character of the emoji.
+	EmojiName string `json:"emoji_name,omitempty"`
+}
+
+// ForumTag represents a tag that is able to be applied to a thread in a forum channel.
+type ForumTag struct {
+	ID        string `json:"id,omitempty"`
+	Name      string `json:"name"`
+	Moderated bool   `json:"moderated"`
+	EmojiID   string `json:"emoji_id,omitempty"`
+	EmojiName string `json:"emoji_name,omitempty"`
+}
+
 // Emoji struct holds data related to Emoji's
 type Emoji struct {
 	ID            string   `json:"id"`
@@ -452,7 +585,7 @@ type Emoji struct {
 
 // EmojiRegex is the regex used to find and identify emojis in messages
 var (
-	EmojiRegex = regexp.MustCompile(`<(a|):[A-z0-9_~]+:[0-9]{18}>`)
+	EmojiRegex = regexp.MustCompile(`<(a|):[A-z0-9_~]+:[0-9]{18,20}>`)
 )
 
 // MessageFormat returns a correctly formatted Emoji for use in Message content and embeds
@@ -498,6 +631,7 @@ const (
 	StickerFormatTypePNG    StickerFormat = 1
 	StickerFormatTypeAPNG   StickerFormat = 2
 	StickerFormatTypeLottie StickerFormat = 3
+	StickerFormatTypeGIF    StickerFormat = 4
 )
 
 // StickerType is the type of sticker.
@@ -522,6 +656,13 @@ type Sticker struct {
 	GuildID     string        `json:"guild_id"`
 	User        *User         `json:"user"`
 	SortValue   int           `json:"sort_value"`
+}
+
+// StickerItem represents the smallest amount of data required to render a sticker. A partial sticker object.
+type StickerItem struct {
+	ID         string        `json:"id"`
+	Name       string        `json:"name"`
+	FormatType StickerFormat `json:"format_type"`
 }
 
 // StickerPack represents a pack of standard stickers.
@@ -792,16 +933,11 @@ type GuildPreview struct {
 }
 
 // IconURL returns a URL to the guild's icon.
-func (g *GuildPreview) IconURL() string {
-	if g.Icon == "" {
-		return ""
-	}
-
-	if strings.HasPrefix(g.Icon, "a_") {
-		return EndpointGuildIconAnimated(g.ID, g.Icon)
-	}
-
-	return EndpointGuildIcon(g.ID, g.Icon)
+//
+//	size:    The size of the desired icon image as a power of two
+//	         Image size can be any power of two between 16 and 4096.
+func (g *GuildPreview) IconURL(size string) string {
+	return iconURL(g.Icon, EndpointGuildIcon(g.ID, g.Icon), EndpointGuildIconAnimated(g.ID, g.Icon), size)
 }
 
 // GuildScheduledEvent is a representation of a scheduled event in a guild. Only for retrieval of the data.
@@ -917,13 +1053,13 @@ type GuildScheduledEventStatus int
 
 const (
 	// GuildScheduledEventStatusScheduled represents the current event is in scheduled state
-	GuildScheduledEventStatusScheduled = 1
+	GuildScheduledEventStatusScheduled GuildScheduledEventStatus = 1
 	// GuildScheduledEventStatusActive represents the current event is in active state
-	GuildScheduledEventStatusActive = 2
+	GuildScheduledEventStatusActive GuildScheduledEventStatus = 2
 	// GuildScheduledEventStatusCompleted represents the current event is in completed state
-	GuildScheduledEventStatusCompleted = 3
+	GuildScheduledEventStatusCompleted GuildScheduledEventStatus = 3
 	// GuildScheduledEventStatusCanceled represents the current event is in canceled state
-	GuildScheduledEventStatusCanceled = 4
+	GuildScheduledEventStatusCanceled GuildScheduledEventStatus = 4
 )
 
 // GuildScheduledEventEntityType is the type of entity associated with a guild scheduled event.
@@ -932,11 +1068,11 @@ type GuildScheduledEventEntityType int
 
 const (
 	// GuildScheduledEventEntityTypeStageInstance represents a stage channel
-	GuildScheduledEventEntityTypeStageInstance = 1
+	GuildScheduledEventEntityTypeStageInstance GuildScheduledEventEntityType = 1
 	// GuildScheduledEventEntityTypeVoice represents a voice channel
-	GuildScheduledEventEntityTypeVoice = 2
+	GuildScheduledEventEntityTypeVoice GuildScheduledEventEntityType = 2
 	// GuildScheduledEventEntityTypeExternal represents an external event
-	GuildScheduledEventEntityTypeExternal = 3
+	GuildScheduledEventEntityTypeExternal GuildScheduledEventEntityType = 3
 )
 
 // GuildScheduledEventUser is a user subscribed to a scheduled event.
@@ -945,6 +1081,109 @@ type GuildScheduledEventUser struct {
 	GuildScheduledEventID string  `json:"guild_scheduled_event_id"`
 	User                  *User   `json:"user"`
 	Member                *Member `json:"member"`
+}
+
+// GuildOnboardingMode defines the criteria used to satisfy constraints that are required for enabling onboarding.
+// https://discord.com/developers/docs/resources/guild#guild-onboarding-object-onboarding-mode
+type GuildOnboardingMode int
+
+// Block containing known GuildOnboardingMode values.
+const (
+	// GuildOnboardingModeDefault counts default channels towards constraints.
+	GuildOnboardingModeDefault GuildOnboardingMode = 0
+	// GuildOnboardingModeAdvanced counts default channels and questions towards constraints.
+	GuildOnboardingModeAdvanced GuildOnboardingMode = 1
+)
+
+// GuildOnboarding represents the onboarding flow for a guild.
+// https://discord.com/developers/docs/resources/guild#guild-onboarding-object
+type GuildOnboarding struct {
+	// ID of the guild this onboarding flow is part of.
+	GuildID string `json:"guild_id,omitempty"`
+
+	// Prompts shown during onboarding and in the customize community (Channels & Roles) tab.
+	Prompts *[]GuildOnboardingPrompt `json:"prompts,omitempty"`
+
+	// Channel IDs that members get opted into automatically.
+	DefaultChannelIDs []string `json:"default_channel_ids,omitempty"`
+
+	// Whether onboarding is enabled in the guild.
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Mode of onboarding.
+	Mode *GuildOnboardingMode `json:"mode,omitempty"`
+}
+
+// GuildOnboardingPromptType is the type of an onboarding prompt.
+// https://discord.com/developers/docs/resources/guild#guild-onboarding-object-prompt-types
+type GuildOnboardingPromptType int
+
+// Block containing known GuildOnboardingPromptType values.
+const (
+	GuildOnboardingPromptTypeMultipleChoice GuildOnboardingPromptType = 0
+	GuildOnboardingPromptTypeDropdown       GuildOnboardingPromptType = 1
+)
+
+// GuildOnboardingPrompt is a prompt shown during onboarding and in the customize community (Channels & Roles) tab.
+// https://discord.com/developers/docs/resources/guild#guild-onboarding-object-onboarding-prompt-structure
+type GuildOnboardingPrompt struct {
+	// ID of the prompt.
+	// NOTE: always requires to be a valid snowflake (e.g. "0"), see
+	// https://github.com/discord/discord-api-docs/issues/6320 for more information.
+	ID string `json:"id,omitempty"`
+
+	// Type of the prompt.
+	Type GuildOnboardingPromptType `json:"type"`
+
+	// Options available within the prompt.
+	Options []GuildOnboardingPromptOption `json:"options"`
+
+	// Title of the prompt.
+	Title string `json:"title"`
+
+	// Indicates whether users are limited to selecting one option for the prompt.
+	SingleSelect bool `json:"single_select"`
+
+	// Indicates whether the prompt is required before a user completes the onboarding flow.
+	Required bool `json:"required"`
+
+	// Indicates whether the prompt is present in the onboarding flow.
+	// If false, the prompt will only appear in the customize community (Channels & Roles) tab.
+	InOnboarding bool `json:"in_onboarding"`
+}
+
+// GuildOnboardingPromptOption is an option available within an onboarding prompt.
+// https://discord.com/developers/docs/resources/guild#guild-onboarding-object-prompt-option-structure
+type GuildOnboardingPromptOption struct {
+	// ID of the prompt option.
+	ID string `json:"id,omitempty"`
+
+	// IDs for channels a member is added to when the option is selected.
+	ChannelIDs []string `json:"channel_ids"`
+
+	// IDs for roles assigned to a member when the option is selected.
+	RoleIDs []string `json:"role_ids"`
+
+	// Emoji of the option.
+	// NOTE: when creating or updating a prompt option
+	// EmojiID, EmojiName and EmojiAnimated should be used instead.
+	Emoji *Emoji `json:"emoji,omitempty"`
+
+	// Title of the option.
+	Title string `json:"title"`
+
+	// Description of the option.
+	Description string `json:"description"`
+
+	// ID of the option's emoji.
+	// NOTE: only used when creating or updating a prompt option.
+	EmojiID string `json:"emoji_id,omitempty"`
+	// Name of the option's emoji.
+	// NOTE: only used when creating or updating a prompt option.
+	EmojiName string `json:"emoji_name,omitempty"`
+	// Whether the option's emoji is animated.
+	// NOTE: only used when creating or updating a prompt option.
+	EmojiAnimated *bool `json:"emoji_animated,omitempty"`
 }
 
 // A GuildTemplate represents a replicable template for guild creation
@@ -1007,29 +1246,26 @@ type SystemChannelFlag int
 
 // Block containing known SystemChannelFlag values
 const (
-	SystemChannelFlagsSuppressJoin    SystemChannelFlag = 1 << 0
-	SystemChannelFlagsSuppressPremium SystemChannelFlag = 1 << 1
+	SystemChannelFlagsSuppressJoinNotifications          SystemChannelFlag = 1 << 0
+	SystemChannelFlagsSuppressPremium                    SystemChannelFlag = 1 << 1
+	SystemChannelFlagsSuppressGuildReminderNotifications SystemChannelFlag = 1 << 2
+	SystemChannelFlagsSuppressJoinNotificationReplies    SystemChannelFlag = 1 << 3
 )
 
 // IconURL returns a URL to the guild's icon.
-func (g *Guild) IconURL() string {
-	if g.Icon == "" {
-		return ""
-	}
-
-	if strings.HasPrefix(g.Icon, "a_") {
-		return EndpointGuildIconAnimated(g.ID, g.Icon)
-	}
-
-	return EndpointGuildIcon(g.ID, g.Icon)
+//
+//	size:    The size of the desired icon image as a power of two
+//	         Image size can be any power of two between 16 and 4096.
+func (g *Guild) IconURL(size string) string {
+	return iconURL(g.Icon, EndpointGuildIcon(g.ID, g.Icon), EndpointGuildIconAnimated(g.ID, g.Icon), size)
 }
 
 // BannerURL returns a URL to the guild's banner.
-func (g *Guild) BannerURL() string {
-	if g.Banner == "" {
-		return ""
-	}
-	return EndpointGuildBanner(g.ID, g.Banner)
+//
+//	size:    The size of the desired banner image as a power of two
+//	         Image size can be any power of two between 16 and 4096.
+func (g *Guild) BannerURL(size string) string {
+	return bannerURL(g.Banner, EndpointGuildBanner(g.ID, g.Banner), EndpointGuildBannerAnimated(g.ID, g.Banner), size)
 }
 
 // A UserGuild holds a brief version of a Guild
@@ -1040,6 +1276,14 @@ type UserGuild struct {
 	Owner       bool           `json:"owner"`
 	Permissions int64          `json:"permissions,string"`
 	Features    []GuildFeature `json:"features"`
+
+	// Approximate number of members in this guild.
+	// NOTE: this field is only filled when withCounts is true.
+	ApproximateMemberCount int `json:"approximate_member_count"`
+
+	// Approximate number of non-offline members in this guild.
+	// NOTE: this field is only filled when withCounts is true.
+	ApproximatePresenceCount int `json:"approximate_presence_count"`
 }
 
 // GuildFeature indicates the presence of a feature in a guild
@@ -1076,12 +1320,22 @@ type GuildParams struct {
 	Region                      string             `json:"region,omitempty"`
 	VerificationLevel           *VerificationLevel `json:"verification_level,omitempty"`
 	DefaultMessageNotifications int                `json:"default_message_notifications,omitempty"` // TODO: Separate type?
+	ExplicitContentFilter       int                `json:"explicit_content_filter,omitempty"`
 	AfkChannelID                string             `json:"afk_channel_id,omitempty"`
 	AfkTimeout                  int                `json:"afk_timeout,omitempty"`
 	Icon                        string             `json:"icon,omitempty"`
 	OwnerID                     string             `json:"owner_id,omitempty"`
 	Splash                      string             `json:"splash,omitempty"`
+	DiscoverySplash             string             `json:"discovery_splash,omitempty"`
 	Banner                      string             `json:"banner,omitempty"`
+	SystemChannelID             string             `json:"system_channel_id,omitempty"`
+	SystemChannelFlags          SystemChannelFlag  `json:"system_channel_flags,omitempty"`
+	RulesChannelID              string             `json:"rules_channel_id,omitempty"`
+	PublicUpdatesChannelID      string             `json:"public_updates_channel_id,omitempty"`
+	PreferredLocale             Locale             `json:"preferred_locale,omitempty"`
+	Features                    []GuildFeature     `json:"features,omitempty"`
+	Description                 string             `json:"description,omitempty"`
+	PremiumProgressBarEnabled   *bool              `json:"premium_progress_bar_enabled,omitempty"`
 }
 
 // A Role stores information about Discord guild member roles.
@@ -1112,11 +1366,49 @@ type Role struct {
 	// This is a combination of bit masks; the presence of a certain permission can
 	// be checked by performing a bitwise AND between this int and the permission.
 	Permissions int64 `json:"permissions,string"`
+
+	// The hash of the role icon. Use Role.IconURL to retrieve the icon's URL.
+	Icon string `json:"icon"`
+
+	// The emoji assigned to this role.
+	UnicodeEmoji string `json:"unicode_emoji"`
+
+	// The flags of the role, which describe its extra features.
+	// This is a combination of bit masks; the presence of a certain flag can
+	// be checked by performing a bitwise AND between this int and the flag.
+	Flags RoleFlags `json:"flags"`
 }
+
+// RoleFlags represent the flags of a Role.
+// https://discord.com/developers/docs/topics/permissions#role-object-role-flags
+type RoleFlags int
+
+// Block containing known RoleFlags values.
+const (
+	// RoleFlagInPrompt indicates whether the Role is selectable by members in an onboarding prompt.
+	RoleFlagInPrompt RoleFlags = 1 << 0
+)
 
 // Mention returns a string which mentions the role
 func (r *Role) Mention() string {
 	return fmt.Sprintf("<@&%s>", r.ID)
+}
+
+// IconURL returns the URL of the role's icon.
+//
+//	size:    The size of the desired role icon as a power of two
+//	         Image size can be any power of two between 16 and 4096.
+func (r *Role) IconURL(size string) string {
+	if r.Icon == "" {
+		return ""
+	}
+
+	URL := EndpointRoleIcon(r.ID, r.Icon)
+
+	if size != "" {
+		return URL + "?size=" + size
+	}
+	return URL
 }
 
 // RoleParams represents the parameters needed to create or update a Role
@@ -1131,6 +1423,12 @@ type RoleParams struct {
 	Permissions *int64 `json:"permissions,omitempty,string"`
 	// Whether this role is mentionable
 	Mentionable *bool `json:"mentionable,omitempty"`
+	// The role's unicode emoji.
+	// NOTE: can only be set if the guild has the ROLE_ICONS feature.
+	UnicodeEmoji *string `json:"unicode_emoji,omitempty"`
+	// The role's icon image encoded in base64.
+	// NOTE: can only be set if the guild has the ROLE_ICONS feature.
+	Icon *string `json:"icon,omitempty"`
 }
 
 // Roles are a collection of Role
@@ -1167,10 +1465,11 @@ type VoiceState struct {
 
 // A Presence stores the online, offline, or idle and game status of Guild members.
 type Presence struct {
-	User       *User       `json:"user"`
-	Status     Status      `json:"status"`
-	Activities []*Activity `json:"activities"`
-	Since      *int        `json:"since"`
+	User         *User        `json:"user"`
+	Status       Status       `json:"status"`
+	Activities   []*Activity  `json:"activities"`
+	Since        *int         `json:"since"`
+	ClientStatus ClientStatus `json:"client_status"`
 }
 
 // A TimeStamps struct contains start and end times used in the rich presence "playing .." Game
@@ -1202,6 +1501,22 @@ type Assets struct {
 	SmallText    string `json:"small_text,omitempty"`
 }
 
+// MemberFlags represent flags of a guild member.
+// https://discord.com/developers/docs/resources/guild#guild-member-object-guild-member-flags
+type MemberFlags int
+
+// Block containing known MemberFlags values.
+const (
+	// MemberFlagDidRejoin indicates whether the Member has left and rejoined the guild.
+	MemberFlagDidRejoin MemberFlags = 1 << 0
+	// MemberFlagCompletedOnboarding indicates whether the Member has completed onboarding.
+	MemberFlagCompletedOnboarding MemberFlags = 1 << 1
+	// MemberFlagBypassesVerification indicates whether the Member is exempt from guild verification requirements.
+	MemberFlagBypassesVerification MemberFlags = 1 << 2
+	// MemberFlagStartedOnboarding indicates whether the Member has started onboarding.
+	MemberFlagStartedOnboarding MemberFlags = 1 << 3
+)
+
 // A Member stores user information for Guild members. A guild
 // member represents a certain user's presence in a guild.
 type Member struct {
@@ -1232,6 +1547,10 @@ type Member struct {
 	// When the user used their Nitro boost on the server
 	PremiumSince *time.Time `json:"premium_since"`
 
+	// The flags of this member. This is a combination of bit masks; the presence of a certain
+	// flag can be checked by performing a bitwise AND between this int and the flag.
+	Flags MemberFlags `json:"flags"`
+
 	// Is true while the member hasn't accepted the membership screen.
 	Pending bool `json:"pending"`
 
@@ -1249,9 +1568,10 @@ func (m *Member) Mention() string {
 }
 
 // AvatarURL returns the URL of the member's avatar
-//    size:    The size of the user's avatar as a power of two
-//             if size is an empty string, no size parameter will
-//             be added to the URL.
+//
+//	size:    The size of the user's avatar as a power of two
+//	         if size is an empty string, no size parameter will
+//	         be added to the URL.
 func (m *Member) AvatarURL(size string) string {
 	if m.Avatar == "" {
 		return m.User.AvatarURL(size)
@@ -1260,6 +1580,22 @@ func (m *Member) AvatarURL(size string) string {
 	return avatarURL(m.Avatar, "", EndpointGuildMemberAvatar(m.GuildID, m.User.ID, m.Avatar),
 		EndpointGuildMemberAvatarAnimated(m.GuildID, m.User.ID, m.Avatar), size)
 
+}
+
+// DisplayName returns the member's guild nickname if they have one,
+// otherwise it returns their discord display name.
+func (m *Member) DisplayName() string {
+	if m.Nick != "" {
+		return m.Nick
+	}
+	return m.User.GlobalName
+}
+
+// ClientStatus stores the online, offline, idle, or dnd status of each device of a Guild member.
+type ClientStatus struct {
+	Desktop Status `json:"desktop"`
+	Mobile  Status `json:"mobile"`
+	Web     Status `json:"web"`
 }
 
 // Status type definition
@@ -1371,9 +1707,21 @@ type AutoModerationTriggerMetadata struct {
 	// Substrings which will be searched for in content.
 	// NOTE: should be only used with keyword trigger type.
 	KeywordFilter []string `json:"keyword_filter,omitempty"`
+	// Regular expression patterns which will be matched against content (maximum of 10).
+	// NOTE: should be only used with keyword trigger type.
+	RegexPatterns []string `json:"regex_patterns,omitempty"`
+
 	// Internally pre-defined wordsets which will be searched for in content.
 	// NOTE: should be only used with keyword preset trigger type.
 	Presets []AutoModerationKeywordPreset `json:"presets,omitempty"`
+
+	// Substrings which should not trigger the rule.
+	// NOTE: should be only used with keyword or keyword preset trigger type.
+	AllowList *[]string `json:"allow_list,omitempty"`
+
+	// Total number of unique role and user mentions allowed per message.
+	// NOTE: should be only used with mention spam trigger type.
+	MentionTotalLimit int `json:"mention_total_limit,omitempty"`
 }
 
 // AutoModerationActionType represents an action which will execute whenever a rule is triggered.
@@ -1590,14 +1938,18 @@ const (
 // AuditLogOptions optional data for the AuditLog
 // https://discord.com/developers/docs/resources/audit-log#audit-log-entry-object-optional-audit-entry-info
 type AuditLogOptions struct {
-	DeleteMemberDays string               `json:"delete_member_days"`
-	MembersRemoved   string               `json:"members_removed"`
-	ChannelID        string               `json:"channel_id"`
-	MessageID        string               `json:"message_id"`
-	Count            string               `json:"count"`
-	ID               string               `json:"id"`
-	Type             *AuditLogOptionsType `json:"type"`
-	RoleName         string               `json:"role_name"`
+	DeleteMemberDays              string               `json:"delete_member_days"`
+	MembersRemoved                string               `json:"members_removed"`
+	ChannelID                     string               `json:"channel_id"`
+	MessageID                     string               `json:"message_id"`
+	Count                         string               `json:"count"`
+	ID                            string               `json:"id"`
+	Type                          *AuditLogOptionsType `json:"type"`
+	RoleName                      string               `json:"role_name"`
+	ApplicationID                 string               `json:"application_id"`
+	AutoModerationRuleName        string               `json:"auto_moderation_rule_name"`
+	AutoModerationRuleTriggerType string               `json:"auto_moderation_rule_trigger_type"`
+	IntegrationType               string               `json:"integration_type"`
 }
 
 // AuditLogOptionsType of the AuditLogOption
@@ -1606,8 +1958,8 @@ type AuditLogOptionsType string
 
 // Valid Types for AuditLogOptionsType
 const (
-	AuditLogOptionsTypeMember AuditLogOptionsType = "member"
-	AuditLogOptionsTypeRole   AuditLogOptionsType = "role"
+	AuditLogOptionsTypeRole   AuditLogOptionsType = "0"
+	AuditLogOptionsTypeMember AuditLogOptionsType = "1"
 )
 
 // AuditLogAction is the Action of the AuditLog (see AuditLogAction* consts)
@@ -1668,7 +2020,7 @@ const (
 	AuditLogActionStickerDelete AuditLogAction = 92
 
 	AuditLogGuildScheduledEventCreate AuditLogAction = 100
-	AuditLogGuildScheduledEventUpdare AuditLogAction = 101
+	AuditLogGuildScheduledEventUpdate AuditLogAction = 101
 	AuditLogGuildScheduledEventDelete AuditLogAction = 102
 
 	AuditLogActionThreadCreate AuditLogAction = 110
@@ -1676,6 +2028,16 @@ const (
 	AuditLogActionThreadDelete AuditLogAction = 112
 
 	AuditLogActionApplicationCommandPermissionUpdate AuditLogAction = 121
+
+	AuditLogActionAutoModerationRuleCreate                AuditLogAction = 140
+	AuditLogActionAutoModerationRuleUpdate                AuditLogAction = 141
+	AuditLogActionAutoModerationRuleDelete                AuditLogAction = 142
+	AuditLogActionAutoModerationBlockMessage              AuditLogAction = 143
+	AuditLogActionAutoModerationFlagToChannel             AuditLogAction = 144
+	AuditLogActionAutoModerationUserCommunicationDisabled AuditLogAction = 145
+
+	AuditLogActionCreatorMonetizationRequestCreated AuditLogAction = 150
+	AuditLogActionCreatorMonetizationTermsAccepted  AuditLogAction = 151
 )
 
 // GuildMemberParams stores data needed to update a member
@@ -2074,6 +2436,7 @@ const (
 	ErrCodeUnknownGuildWelcomeScreen             = 10069
 	ErrCodeUnknownGuildScheduledEvent            = 10070
 	ErrCodeUnknownGuildScheduledEventUser        = 10071
+	ErrUnknownTag                                = 10087
 
 	ErrCodeBotsCannotUseEndpoint                                            = 20001
 	ErrCodeOnlyBotsCanUseEndpoint                                           = 20002
@@ -2087,28 +2450,30 @@ const (
 	ErrCodeStageTopicContainsNotAllowedWordsForPublicStages                 = 20031
 	ErrCodeGuildPremiumSubscriptionLevelTooLow                              = 20035
 
-	ErrCodeMaximumGuildsReached                                    = 30001
-	ErrCodeMaximumPinsReached                                      = 30003
-	ErrCodeMaximumNumberOfRecipientsReached                        = 30004
-	ErrCodeMaximumGuildRolesReached                                = 30005
-	ErrCodeMaximumNumberOfWebhooksReached                          = 30007
-	ErrCodeMaximumNumberOfEmojisReached                            = 30008
-	ErrCodeTooManyReactions                                        = 30010
-	ErrCodeMaximumNumberOfGuildChannelsReached                     = 30013
-	ErrCodeMaximumNumberOfAttachmentsInAMessageReached             = 30015
-	ErrCodeMaximumNumberOfInvitesReached                           = 30016
-	ErrCodeMaximumNumberOfAnimatedEmojisReached                    = 30018
-	ErrCodeMaximumNumberOfServerMembersReached                     = 30019
-	ErrCodeMaximumNumberOfGuildDiscoverySubcategoriesReached       = 30030
-	ErrCodeGuildAlreadyHasATemplate                                = 30031
-	ErrCodeMaximumNumberOfThreadParticipantsReached                = 30033
-	ErrCodeMaximumNumberOfBansForNonGuildMembersHaveBeenExceeded   = 30035
-	ErrCodeMaximumNumberOfBansFetchesHasBeenReached                = 30037
-	ErrCodeMaximumNumberOfUncompletedGuildScheduledEventsReached   = 30038
-	ErrCodeMaximumNumberOfStickersReached                          = 30039
-	ErrCodeMaximumNumberOfPruneRequestsHasBeenReached              = 30040
-	ErrCodeMaximumNumberOfGuildWidgetSettingsUpdatesHasBeenReached = 30042
-	ErrCodeMaximumNumberOfEditsToMessagesOlderThanOneHourReached   = 30046
+	ErrCodeMaximumGuildsReached                                     = 30001
+	ErrCodeMaximumPinsReached                                       = 30003
+	ErrCodeMaximumNumberOfRecipientsReached                         = 30004
+	ErrCodeMaximumGuildRolesReached                                 = 30005
+	ErrCodeMaximumNumberOfWebhooksReached                           = 30007
+	ErrCodeMaximumNumberOfEmojisReached                             = 30008
+	ErrCodeTooManyReactions                                         = 30010
+	ErrCodeMaximumNumberOfGuildChannelsReached                      = 30013
+	ErrCodeMaximumNumberOfAttachmentsInAMessageReached              = 30015
+	ErrCodeMaximumNumberOfInvitesReached                            = 30016
+	ErrCodeMaximumNumberOfAnimatedEmojisReached                     = 30018
+	ErrCodeMaximumNumberOfServerMembersReached                      = 30019
+	ErrCodeMaximumNumberOfGuildDiscoverySubcategoriesReached        = 30030
+	ErrCodeGuildAlreadyHasATemplate                                 = 30031
+	ErrCodeMaximumNumberOfThreadParticipantsReached                 = 30033
+	ErrCodeMaximumNumberOfBansForNonGuildMembersHaveBeenExceeded    = 30035
+	ErrCodeMaximumNumberOfBansFetchesHasBeenReached                 = 30037
+	ErrCodeMaximumNumberOfUncompletedGuildScheduledEventsReached    = 30038
+	ErrCodeMaximumNumberOfStickersReached                           = 30039
+	ErrCodeMaximumNumberOfPruneRequestsHasBeenReached               = 30040
+	ErrCodeMaximumNumberOfGuildWidgetSettingsUpdatesHasBeenReached  = 30042
+	ErrCodeMaximumNumberOfEditsToMessagesOlderThanOneHourReached    = 30046
+	ErrCodeMaximumNumberOfPinnedThreadsInForumChannelHasBeenReached = 30047
+	ErrCodeMaximumNumberOfTagsInForumChannelHasBeenReached          = 30048
 
 	ErrCodeUnauthorized                           = 40001
 	ErrCodeActionRequiredVerifiedAccount          = 40002
@@ -2121,6 +2486,7 @@ const (
 	ErrCodeMessageAlreadyCrossposted              = 40033
 	ErrCodeAnApplicationWithThatNameAlreadyExists = 40041
 	ErrCodeInteractionHasAlreadyBeenAcknowledged  = 40060
+	ErrCodeTagNamesMustBeUnique                   = 40061
 
 	ErrCodeMissingAccess                                                = 50001
 	ErrCodeInvalidAccountType                                           = 50002
@@ -2189,6 +2555,9 @@ const (
 
 	ErrCodeCannotUpdateAFinishedEvent             = 180000
 	ErrCodeFailedToCreateStageNeededForStageEvent = 180002
+
+	ErrCodeCannotEnableOnboardingRequirementsAreNotMet  = 350000
+	ErrCodeCannotUpdateOnboardingWhileBelowRequirements = 350001
 )
 
 // Intent is the type of a Gateway Intent
@@ -2199,7 +2568,7 @@ type Intent int
 const (
 	IntentGuilds                      Intent = 1 << 0
 	IntentGuildMembers                Intent = 1 << 1
-	IntentGuildBans                   Intent = 1 << 2
+	IntentGuildModeration             Intent = 1 << 2
 	IntentGuildEmojis                 Intent = 1 << 3
 	IntentGuildIntegrations           Intent = 1 << 4
 	IntentGuildWebhooks               Intent = 1 << 5
@@ -2218,6 +2587,8 @@ const (
 	IntentAutoModerationExecution     Intent = 1 << 21
 
 	// TODO: remove when compatibility is not needed
+
+	IntentGuildBans Intent = IntentGuildModeration
 
 	IntentsGuilds                 Intent = 1 << 0
 	IntentsGuildMembers           Intent = 1 << 1

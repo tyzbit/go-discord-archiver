@@ -76,7 +76,7 @@ type VoiceSpeakingUpdateHandler func(vc *VoiceConnection, vs *VoiceSpeakingUpdat
 // Speaking sends a speaking notification to Discord over the voice websocket.
 // This must be sent as true prior to sending audio and should be set to false
 // once finished sending audio.
-//  b  : Send true if speaking, false if not.
+// b : Send true if speaking, false if not.
 func (v *VoiceConnection) Speaking(b bool) (err error) {
 
 	v.log(LogDebug, "called (%t)", b)
@@ -294,11 +294,15 @@ func (v *VoiceConnection) open() (err error) {
 		if v.sessionID != "" {
 			break
 		}
+
 		if i > 20 { // only loop for up to 1 second total
 			return fmt.Errorf("did not receive voice Session ID in time")
 		}
+		// Release the lock, so sessionID can be populated upon receiving a VoiceStateUpdate event.
+		v.Unlock()
 		time.Sleep(50 * time.Millisecond)
 		i++
+		v.Lock()
 	}
 
 	// Connect to VoiceConnection Websocket
@@ -359,6 +363,25 @@ func (v *VoiceConnection) wsListen(wsConn *websocket.Conn, close <-chan struct{}
 				v.Lock()
 				v.wsConn = nil
 				v.Unlock()
+
+				// Wait for VOICE_SERVER_UPDATE.
+				// When the bot is moved by the user to another voice channel,
+				// VOICE_SERVER_UPDATE is received after the code 4014.
+				for i := 0; i < 5; i++ { // TODO: temp, wait for VoiceServerUpdate.
+					<-time.After(1 * time.Second)
+
+					v.RLock()
+					reconnected := v.wsConn != nil
+					v.RUnlock()
+					if !reconnected {
+						continue
+					}
+					v.log(LogInformational, "successfully reconnected after 4014 manual disconnection")
+					return
+				}
+
+				// When VOICE_SERVER_UPDATE is not received, disconnect as usual.
+				v.log(LogInformational, "disconnect due to 4014 manual disconnection")
 
 				v.session.Lock()
 				delete(v.session.VoiceConnections, v.GuildID)
@@ -837,7 +860,7 @@ func (v *VoiceConnection) opusReceiver(udpConn *net.UDPConn, close <-chan struct
 		if opus, ok := secretbox.Open(nil, recvbuf[12:rlen], &nonce, &v.op4.SecretKey); ok {
 			p.Opus = opus
 		} else {
-			return
+			continue
 		}
 
 		// extension bit set, and not a RTCP packet

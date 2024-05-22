@@ -13,6 +13,7 @@ const (
 	Settings                  = "settings"
 	Archive                   = "archive"
 	ArchiveMessage            = "Get snapshot"
+	ArchiveMessagePrivate     = "Get snapshot (private)"
 	ArchiveMessageNewSnapshot = "Take snapshot"
 	Help                      = "help"
 
@@ -106,6 +107,10 @@ var (
 		},
 		{
 			Name: ArchiveMessage,
+			Type: discordgo.MessageApplicationCommand,
+		},
+		{
+			Name: ArchiveMessagePrivate,
 			Type: discordgo.MessageApplicationCommand,
 		},
 		{

@@ -9,12 +9,11 @@ const (
 	Retry = "retry"
 
 	// Commands
-	Stats                     = "stats"
 	Settings                  = "settings"
 	Archive                   = "archive"
-	ArchiveMessage            = "Get snapshot"
-	ArchiveMessagePrivate     = "Get snapshot (private)"
-	ArchiveMessageNewSnapshot = "Take snapshot"
+	ArchiveMessage            = "Get saved snapshots"
+	ArchiveMessagePrivate     = "Get saved snapshots (private)"
+	ArchiveMessageNewSnapshot = "Take new snapshot"
 	Help                      = "help"
 
 	// Command options
@@ -36,15 +35,19 @@ const (
 
 	// Colors
 	FrenchGray = 13424349
+	BrightRed  = 16711680
 
 	// Archive.org URL timestamp layout
 	ArchiveOrgTimestampLayout = "20060102150405"
 
 	// Shown to the user when `/help` is called
 	BotHelpText = `**Usage**
-	React to a message that has links with 🏛 (The "classical building" emoji) and the bot will respond in the channel with an archive.org link for the link(s). It saves the page to archive.org if needed.
-
-- You can also right-click (or long press) a message and use "Get snapshot" to get a message with snapshots that only you can see- You can also right-click (or long press) a message and use "Get snapshot" to get a message with snapshots that only you can see or select "Take snapshot" to take a snapshot of the live page.
+	- Right-click (or long press) a message and use "Get snapshot" to post a message with snapshots for the links in the message. 
+	  - Use the private option for a message only you can see.
+- Select "Take snapshot" to take a new snapshot of the live page.
+	
+⚠️ Being deprecated Dec 1, 2024⚠️ 
+- React to a message that has links with 🏛 (The "classical building" emoji) and the bot will respond in the channel with an archive.org link for the link(s). It saves the page to archive.org if needed.
 
 **This is a pretty good way to get around paywalls to read articles for free.**
 
@@ -116,10 +119,6 @@ var (
 		{
 			Name: ArchiveMessageNewSnapshot,
 			Type: discordgo.MessageApplicationCommand,
-		},
-		{
-			Name:        Stats,
-			Description: "Show bot stats",
 		},
 		{
 			Name:        Settings,

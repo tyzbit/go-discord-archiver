@@ -141,7 +141,7 @@ func main() {
 	// We have to be explicit about what we want to receive. In addition,
 	// some intents require additional permissions, which must be granted
 	// to the bot when it's added or after the fact by a guild admin
-	discordIntents := discordgo.IntentsGuildMessages | discordgo.IntentsGuilds |
+	discordIntents := discordgo.IntentsGuilds |
 		discordgo.IntentsDirectMessages | discordgo.IntentsDirectMessageReactions |
 		discordgo.IntentsGuildMessageReactions
 	dg.Identify.Intents = discordIntents

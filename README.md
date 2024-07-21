@@ -12,8 +12,8 @@ https://discord.gg/kvE2bbfYu3
 
 Set some environment variables before launching, or add a `.env` file.
 
-If database environment variables are provided, the bot will save stats to an external database.
-Otherwise, it will save stats to a local sqlite database at `/var/go-discord-archiver/local.db`
+If database environment variables are provided, the bot will save configuration to an external database.
+Otherwise, it will save configuration to a local sqlite database at `/var/go-discord-archiver/local.db`
 
 | Variable          | Value(s)                                                                               |
 | :---------------- | :------------------------------------------------------------------------------------- |

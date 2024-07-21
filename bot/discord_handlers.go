@@ -159,6 +159,21 @@ func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *disco
 				log.Errorf("problem sending message: %v", err)
 			}
 		}
+
+		bot.DG.ChannelMessageSendComplex(r.ChannelID, &discordgo.MessageSend{
+			Embeds: []*discordgo.MessageEmbed{{
+				Title: "NOTICE!!!!",
+				Color: globals.BrightRed,
+				Description: "The emoji reaction feature is being removed on " +
+					"September 1, 2024 due to llimitations Discord has " +
+					"imposed. Instead, use the context menus (right-click or " +
+					"long press a message). They offer more functionality " +
+					"than the emoji as well. You can also use the `/archive` " +
+					"command. Use `/help` for more info. You can provide " +
+					"feedback on this change on the [issue tracker]" +
+					"(https://github.com/tyzbit/go-discord-archiver/issues/38).",
+			}},
+		})
 	}
 }
 
@@ -188,8 +203,9 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 			}
 		},
 		// bot.archiveInteraction can handle both the archive slash command and the app menu function
-		globals.Archive:                   func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, false, true) },
-		globals.ArchiveMessage:            func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, false, true) },
+		globals.Archive:                   func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, false, false) },
+		globals.ArchiveMessage:            func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, false, false) },
+		globals.ArchiveMessagePrivate:     func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, false, true) },
 		globals.ArchiveMessageNewSnapshot: func(s *discordgo.Session, i *discordgo.InteractionCreate) { bot.archiveInteraction(i, true, true) },
 		globals.Settings: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			log.Debug("handling settings request")
@@ -348,7 +364,7 @@ func (bot *ArchiverBot) InteractionHandler(s *discordgo.Session, i *discordgo.In
 	}
 }
 
-// archiveInteraction is called by using /archive and using the "Get snapshots" app function.
+// archiveInteraction is called by using /archive and using the "Get archived snapshots" app function.
 func (bot *ArchiverBot) archiveInteraction(i *discordgo.InteractionCreate, newSnapshot bool, ephemeral bool) {
 	log.Debug("handling archive command request")
 	var flags discordgo.MessageFlags

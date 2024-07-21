@@ -2,6 +2,12 @@
 
 Discord bot for archive.org, written in Go
 
+# NOTICE
+
+The emoji functionality will be deprecated September 1, 2024. Please see the
+[issue on the issue tracker](https://github.com/tyzbit/go-discord-archiver/issues/38)
+for more information.
+
 ## Help and data deletion requests
 
 Join the Discord for help and for deletion requests

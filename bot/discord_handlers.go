@@ -392,7 +392,10 @@ func (bot *ArchiverBot) archiveInteraction(i *discordgo.InteractionCreate, newSn
 
 	for _, message := range messagesToSend {
 		if message == nil {
-			log.Errorf("empty message")
+			log.Errorf("empty message, not trying to send")
+			message = &discordgo.MessageSend{
+				Content: "Error handling interaction",
+			}
 		}
 		err := bot.sendArchiveCommandResponse(i.Interaction, message)
 		if err != nil {

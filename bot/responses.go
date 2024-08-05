@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	archiveDomain     string = "web.archive.org"
-	archiveRoot       string = "https://" + archiveDomain + "/web"
-	originalURLSearch string = ".*(http.*)"
-	waybackPrefix     string = "http(s)?://web.archive.org"
+	archiveDomain        string = "web.archive.org"
+	archiveRoot          string = "https://" + archiveDomain + "/web"
+	archivePhTimeGateAPI string = "https://archive.is/timegate"
+	originalURLSearch    string = ".*(http.*)"
+	waybackPrefix        string = "http(s)?://web.archive.org"
 )
 
 // buildMessageResponse takes a Discord session an original message and
@@ -178,7 +179,9 @@ func (bot *ArchiverBot) buildInteractionResponse(i *discordgo.InteractionCreate,
 				newSnapshot = command.BoolValue()
 			}
 		}
-	} else if commandData.Name == globals.ArchiveMessage || commandData.Name == globals.ArchiveMessageNewSnapshot {
+	} else if commandData.Name == globals.ArchiveMessage ||
+		commandData.Name == globals.ArchiveMessageNewSnapshot ||
+		commandData.Name == globals.ArchiveMessagePrivate {
 		for _, message := range commandData.Resolved.Messages {
 			urlGroup, urlErrs := bot.extractMessageUrls(message.Content)
 			messageUrls = append(messageUrls, urlGroup...)
@@ -448,6 +451,12 @@ func (bot *ArchiverBot) buildArchiveReply(archivedLinks []string, messageUrls []
 								Name: "Total Number of Snapshots",
 								Value: fmt.Sprintf("[%s](%s/%s0000000000*/%s)",
 									fmt.Sprint(snapshotCount), archiveRoot, fmt.Sprint(time.Now().Year()), originalUrl),
+								Inline: true,
+							},
+							{
+								Name:   "Alternate links",
+								Value:  fmt.Sprintf("[%s](%s/%s)", "archive.is", archivePhTimeGateAPI, originalUrl),
+								Inline: true,
 							},
 						}
 					}
@@ -457,7 +466,7 @@ func (bot *ArchiverBot) buildArchiveReply(archivedLinks []string, messageUrls []
 		embed.Footer = &discordgo.MessageEmbedFooter{
 			Text: "⚙️ Customize this message with /settings\n" +
 				"NOTICE: Reacting with 🏛️ being deprecated September 1, 2024," +
-				" run `/help` for more.",
+				" run `/help` for more.\n",
 		}
 
 		embed.URL = originalUrl

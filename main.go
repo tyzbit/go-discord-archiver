@@ -135,15 +135,12 @@ func main() {
 	dg.AddHandler(archiveBot.BotReadyHandler)
 	dg.AddHandler(archiveBot.GuildCreateHandler)
 	dg.AddHandler(archiveBot.GuildDeleteHandler)
-	dg.AddHandler(archiveBot.MessageReactionAddHandler)
 	dg.AddHandler(archiveBot.InteractionHandler)
 
 	// We have to be explicit about what we want to receive. In addition,
 	// some intents require additional permissions, which must be granted
 	// to the bot when it's added or after the fact by a guild admin
-	discordIntents := discordgo.IntentsGuilds |
-		discordgo.IntentsDirectMessages | discordgo.IntentsDirectMessageReactions |
-		discordgo.IntentsGuildMessageReactions
+	discordIntents := discordgo.IntentsGuilds
 	dg.Identify.Intents = discordIntents
 
 	// Open a websocket connection to Discord and begin listening

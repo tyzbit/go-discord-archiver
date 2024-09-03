@@ -4,7 +4,7 @@ Discord bot for archive.org, written in Go
 
 # NOTICE
 
-The emoji functionality will be deprecated September 1, 2024. Please see the
+The emoji functionality was deprecated September 1, 2024. Please see the
 [issue on the issue tracker](https://github.com/tyzbit/go-discord-archiver/issues/38)
 for more information.
 
@@ -34,9 +34,7 @@ Otherwise, it will save configuration to a local sqlite database at `/var/go-dis
 
 ## Usage
 
-React to a message that has links with 🏛 (The "classical building" emoji) and the bot will respond in the channel with an archive.org link for the link(s). It saves the page to archive.org if needed.
-
-- You can also right-click (or long press) a message and use "Get snapshot" to get a message with snapshots that only you can see or select "Take snapshot" to take a snapshot of the live page.
+Right-click (or long press) a message and use "Get snapshot" to get a message with snapshots that only you can see or select "Take snapshot" to take a snapshot of the live page.
 
 **This is a pretty good way to get around paywalls to read articles for free.**
 

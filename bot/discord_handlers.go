@@ -1,8 +1,6 @@
 package bot
 
 import (
-	"fmt"
-
 	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
 	globals "github.com/tyzbit/go-discord-archiver/globals"
@@ -93,87 +91,6 @@ func (bot *ArchiverBot) GuildDeleteHandler(s *discordgo.Session, gd *discordgo.G
 	err := bot.registerOrUpdateServer(gd.BeforeDelete, true)
 	if err != nil {
 		log.Errorf("unable to register or update server: %v", err)
-	}
-}
-
-// This function will be called every time a new react is created on any message
-// that the authenticated bot has access to
-func (bot *ArchiverBot) MessageReactionAddHandler(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
-	if r.MessageReaction.Emoji.Name == "🏛️" {
-		var m *discordgo.Message
-		// Guild ID is blank if the user is DMing us
-		if r.MessageReaction.GuildID == "" {
-			user, err := s.User(r.MessageReaction.UserID)
-			if err != nil {
-				log.Errorf("unable to look up user by id: %v", r.MessageReaction.UserID+", "+fmt.Sprintf("%v", err))
-				return
-			}
-			// Create a fake message so that we can handle reacts
-			// and interactions
-			m = &discordgo.Message{
-				ID: r.MessageReaction.MessageID,
-				Member: &discordgo.Member{
-					User: &discordgo.User{
-						ID:       user.ID,
-						Username: user.Username,
-					},
-				},
-				ChannelID: r.ChannelID,
-			}
-		} else {
-			// Create a fake message so that we can handle reacts
-			// and interactions
-			m = &discordgo.Message{
-				ID: r.MessageID,
-				Member: &discordgo.Member{
-					User: &discordgo.User{
-						ID:       r.Member.User.ID,
-						Username: r.Member.User.Username,
-					},
-				},
-				GuildID:   r.MessageReaction.GuildID,
-				ChannelID: r.ChannelID,
-			}
-		}
-
-		typingStop := make(chan bool, 1)
-		go bot.typeInChannel(typingStop, r.ChannelID)
-
-		replies, errs := bot.buildMessageResponse(m, false)
-		for _, err := range errs {
-			if err != nil {
-				log.Errorf("problem handling archive request: %v", err)
-			}
-		}
-
-		if replies == nil {
-			log.Warn("no archive replies were returned")
-			typingStop <- true
-			return
-		}
-
-		for _, messagesToSend := range replies {
-			typingStop <- true
-			err := bot.sendArchiveResponse(m, messagesToSend)
-			if err != nil {
-				log.Errorf("problem sending message: %v", err)
-			}
-		}
-
-		bot.DG.ChannelMessageSendComplex(r.ChannelID, &discordgo.MessageSend{
-			Embeds: []*discordgo.MessageEmbed{{
-				Title: "NOTICE!!!!",
-				Color: globals.BrightRed,
-				Description: "The emoji reaction feature is being removed on " +
-					"September 1, 2024 due to llimitations Discord has " +
-					"imposed. Instead, use the context menus (right-click or " +
-					"long press a message). They offer more functionality " +
-					"than the emoji as well. You can also use the `/archive` " +
-					"command. Use `/help` for more info. You can provide " +
-					"feedback on this change on the [issue tracker]" +
-					"(https://github.com/tyzbit/go-discord-archiver/issues/38).",
-			}},
-		})
 	}
 }
 

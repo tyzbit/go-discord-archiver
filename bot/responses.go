@@ -464,9 +464,7 @@ func (bot *ArchiverBot) buildArchiveReply(archivedLinks []string, messageUrls []
 			}
 		}
 		embed.Footer = &discordgo.MessageEmbedFooter{
-			Text: "⚙️ Customize this message with /settings\n" +
-				"NOTICE: Reacting with 🏛️ being deprecated September 1, 2024," +
-				" run `/help` for more.\n",
+			Text: "⚙️ Customize this message with /settings",
 		}
 
 		embed.URL = originalUrl

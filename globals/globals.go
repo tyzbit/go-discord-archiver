@@ -46,9 +46,6 @@ const (
 	  - Use the private option for a message only you can see.
 - Select "Take snapshot" to take a new snapshot of the live page.
 	
-⚠️ Being deprecated Dec 1, 2024⚠️ 
-- React to a message that has links with 🏛 (The "classical building" emoji) and the bot will respond in the channel with an archive.org link for the link(s). It saves the page to archive.org if needed.
-
 **This is a pretty good way to get around paywalls to read articles for free.**
 
 Configure the bot:

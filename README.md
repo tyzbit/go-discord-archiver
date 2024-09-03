@@ -34,7 +34,7 @@ Otherwise, it will save configuration to a local sqlite database at `/var/go-dis
 
 ## Usage
 
-Right-click (or long press) a message and use "Get snapshot" to get a message with snapshots that only you can see or select "Take snapshot" to take a snapshot of the live page.
+Right-click (or long press) a message and use "Get snapshot" to get a message with snapshots (or use the private option for a message only you can see) or select "Take snapshot" to take a fresh snapshot of the live page.
 
 **This is a pretty good way to get around paywalls to read articles for free.**
 

@@ -42,10 +42,10 @@ const (
 
 	// Shown to the user when `/help` is called
 	BotHelpText = `**Usage**
-	- Right-click (or long press) a message and use "Get snapshot" to post a message with snapshots for the links in the message. 
-	  - Use the private option for a message only you can see.
-- Select "Take snapshot" to take a new snapshot of the live page.
-	
+- Right-click (or long press) a message and use "Get snapshot" to post a message with snapshots for the links in the message. 
+  - Use the private option for a message only you can see.
+- Select "Take snapshot" to take a fresh snapshot of the live page.
+
 **This is a pretty good way to get around paywalls to read articles for free.**
 
 Configure the bot:

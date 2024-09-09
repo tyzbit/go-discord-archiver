@@ -12,7 +12,7 @@ require (
 	github.com/tyzbit/go-archive v0.0.0-20230720150823-69f1618c0490
 	gorm.io/driver/mysql v1.5.6
 	gorm.io/driver/sqlite v1.5.5
-	gorm.io/gorm v1.25.9
+	gorm.io/gorm v1.25.12
 )
 
 require (

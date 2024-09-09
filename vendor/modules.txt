@@ -200,6 +200,8 @@ golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/text v0.15.0
 ## explicit; go 1.18
+golang.org/x/text/cases
+golang.org/x/text/internal
 golang.org/x/text/internal/language
 golang.org/x/text/internal/language/compact
 golang.org/x/text/internal/tag
@@ -232,7 +234,7 @@ gorm.io/driver/mysql
 # gorm.io/driver/sqlite v1.5.5
 ## explicit; go 1.20
 gorm.io/driver/sqlite
-# gorm.io/gorm v1.25.9
+# gorm.io/gorm v1.25.12
 ## explicit; go 1.18
 gorm.io/gorm
 gorm.io/gorm/callbacks

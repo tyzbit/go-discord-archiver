@@ -49,14 +49,14 @@ type ArchiverBot struct {
 // ArchiverBotConfig is attached to ArchiverBot so config settings can be
 // accessed easily
 type ArchiverBotConfig struct {
-	AdminIds   []string `env:"ADMINISTRATOR_IDS"`
-	DBHost     string   `env:"DB_HOST"`
-	DBName     string   `env:"DB_NAME"`
-	DBPassword string   `env:"DB_PASSWORD"`
-	DBUser     string   `env:"DB_USER"`
-	LogLevel   string   `env:"LOG_LEVEL"`
-	Token      string   `env:"TOKEN"`
-	Cookie     string   `env:"COOKIE"`
+	DBHost                string `env:"DB_HOST"`
+	DBName                string `env:"DB_NAME"`
+	DBPassword            string `env:"DB_PASSWORD"`
+	DBUser                string `env:"DB_USER"`
+	ReregisterAllCommands bool   `env:"REREGISTER_COMMANMDS"`
+	LogLevel              string `env:"LOG_LEVEL"`
+	Token                 string `env:"TOKEN"`
+	Cookie                string `env:"COOKIE"`
 }
 
 // Servers

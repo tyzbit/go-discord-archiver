@@ -21,16 +21,16 @@ Set some environment variables before launching, or add a `.env` file.
 If database environment variables are provided, the bot will save configuration to an external database.
 Otherwise, it will save configuration to a local sqlite database at `/var/go-discord-archiver/local.db`
 
-| Variable          | Value(s)                                                                               |
-| :---------------- | :------------------------------------------------------------------------------------- |
-| ADMINISTRATOR_IDS | Comma separated IDs of users allowed to use administrator commands                     |
-| DB_NAME           | Database name for database                                                             |
-| DB_HOST           | Hostname for database                                                                  |
-| DB_PASSWORD       | Password for database user                                                             |
-| DB_USER           | Username for database user                                                             |
-| LOG_LEVEL         | `trace`, `debug`, `info`, `warn`, `error`                                              |
-| COOKIE            | Archive.org login cookie, get this from a web browser's Dev Tools visiting Archive.org |
-| TOKEN             | The Discord token the bot should use                                                   |
+| Variable            | Value(s)                                                                               |
+| :------------------ | :------------------------------------------------------------------------------------- |
+| DB_NAME             | Database name for database                                                             |
+| DB_HOST             | Hostname for database                                                                  |
+| DB_PASSWORD         | Password for database user                                                             |
+| DB_USER             | Username for database user                                                             |
+| REREGISTER_COMMANDS | Delete and re-register commands. Only use when command names are changed, unset after  |
+| LOG_LEVEL           | `trace`, `debug`, `info`, `warn`, `error`                                              |
+| COOKIE              | Archive.org login cookie, get this from a web browser's Dev Tools visiting Archive.org |
+| TOKEN               | The Discord token the bot should use                                                   |
 
 ## Usage
 

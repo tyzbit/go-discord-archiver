@@ -15,11 +15,19 @@ func (bot *ArchiverBot) BotReadyHandler(s *discordgo.Session, r *discordgo.Ready
 
 	// Use this to clean up commands if IDs have changed
 	// TODO remove later if unnecessary
-	// log.Debug("removing all commands")
-	// bot.deleteAllCommands()
-	// var err error
-	// globals.RegisteredCommands, err = bot.DG.ApplicationCommandBulkOverwrite(bot.DG.State.User.ID, "", globals.Commands)
-	log.Debug("registering slash commands")
+	if bot.Config.ReregisterAllCommands {
+		envVar := getTagValue(ArchiverBotConfig{}, "ReregisterAllCommands", "env")
+		log.Warn(envVar + " is enabled, commands will be re-registered on every startup " +
+			"(not advised, existing commands break for users and you will get rate-limited)")
+		log.Info("re-registering slash commands")
+		bot.deleteAllCommands()
+		_, err := bot.DG.ApplicationCommandBulkOverwrite(bot.DG.State.User.ID, "", globals.Commands)
+		if err != nil {
+			log.Errorf("error re-registering commands, err: %s", err)
+		}
+	} else {
+		log.Debug("updating registered slash commands")
+	}
 	registeredCommands, err := bot.DG.ApplicationCommands(bot.DG.State.User.ID, "")
 	if err != nil {
 		log.Errorf("unable to look up registered application commands, err: %s", err)

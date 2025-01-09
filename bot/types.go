@@ -53,7 +53,7 @@ type ArchiverBotConfig struct {
 	DBName                string `env:"DB_NAME"`
 	DBPassword            string `env:"DB_PASSWORD"`
 	DBUser                string `env:"DB_USER"`
-	ReregisterAllCommands bool   `env:"REREGISTER_COMMANMDS"`
+	ReregisterAllCommands bool   `env:"REREGISTER_COMMANDS"`
 	LogLevel              string `env:"LOG_LEVEL"`
 	Token                 string `env:"TOKEN"`
 	Cookie                string `env:"COOKIE"`

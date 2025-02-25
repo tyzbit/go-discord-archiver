@@ -192,8 +192,12 @@ func (bot *ArchiverBot) buildInteractionResponse(i *discordgo.InteractionCreate,
 	}
 
 	for index, err := range errs {
+		message := "no message"
+		if len(messageUrls) >= index+1 {
+			message = messageUrls[index]
+		}
 		if err != nil {
-			log.Errorf("unable to extract message url: %s, err: %s", messageUrls[index], err)
+			log.Errorf("unable to extract message url: %s, err: %s", message, err)
 		}
 	}
 

@@ -18,6 +18,9 @@ const (
 	channelUpdateEventType                       = "CHANNEL_UPDATE"
 	connectEventType                             = "__CONNECT__"
 	disconnectEventType                          = "__DISCONNECT__"
+	entitlementCreateEventType                   = "ENTITLEMENT_CREATE"
+	entitlementDeleteEventType                   = "ENTITLEMENT_DELETE"
+	entitlementUpdateEventType                   = "ENTITLEMENT_UPDATE"
 	eventEventType                               = "__EVENT__"
 	guildAuditLogEntryCreateEventType            = "GUILD_AUDIT_LOG_ENTRY_CREATE"
 	guildBanAddEventType                         = "GUILD_BAN_ADD"
@@ -38,13 +41,19 @@ const (
 	guildScheduledEventUpdateEventType           = "GUILD_SCHEDULED_EVENT_UPDATE"
 	guildScheduledEventUserAddEventType          = "GUILD_SCHEDULED_EVENT_USER_ADD"
 	guildScheduledEventUserRemoveEventType       = "GUILD_SCHEDULED_EVENT_USER_REMOVE"
+	guildStickersUpdateEventType                 = "GUILD_STICKERS_UPDATE"
 	guildUpdateEventType                         = "GUILD_UPDATE"
+	integrationCreateEventType                   = "INTEGRATION_CREATE"
+	integrationDeleteEventType                   = "INTEGRATION_DELETE"
+	integrationUpdateEventType                   = "INTEGRATION_UPDATE"
 	interactionCreateEventType                   = "INTERACTION_CREATE"
 	inviteCreateEventType                        = "INVITE_CREATE"
 	inviteDeleteEventType                        = "INVITE_DELETE"
 	messageCreateEventType                       = "MESSAGE_CREATE"
 	messageDeleteEventType                       = "MESSAGE_DELETE"
 	messageDeleteBulkEventType                   = "MESSAGE_DELETE_BULK"
+	messagePollVoteAddEventType                  = "MESSAGE_POLL_VOTE_ADD"
+	messagePollVoteRemoveEventType               = "MESSAGE_POLL_VOTE_REMOVE"
 	messageReactionAddEventType                  = "MESSAGE_REACTION_ADD"
 	messageReactionRemoveEventType               = "MESSAGE_REACTION_REMOVE"
 	messageReactionRemoveAllEventType            = "MESSAGE_REACTION_REMOVE_ALL"
@@ -57,6 +66,9 @@ const (
 	stageInstanceEventCreateEventType            = "STAGE_INSTANCE_EVENT_CREATE"
 	stageInstanceEventDeleteEventType            = "STAGE_INSTANCE_EVENT_DELETE"
 	stageInstanceEventUpdateEventType            = "STAGE_INSTANCE_EVENT_UPDATE"
+	subscriptionCreateEventType                  = "SUBSCRIPTION_CREATE"
+	subscriptionDeleteEventType                  = "SUBSCRIPTION_DELETE"
+	subscriptionUpdateEventType                  = "SUBSCRIPTION_UPDATE"
 	threadCreateEventType                        = "THREAD_CREATE"
 	threadDeleteEventType                        = "THREAD_DELETE"
 	threadListSyncEventType                      = "THREAD_LIST_SYNC"
@@ -276,6 +288,66 @@ func (eh disconnectEventHandler) Type() string {
 // Handle is the handler for Disconnect events.
 func (eh disconnectEventHandler) Handle(s *Session, i interface{}) {
 	if t, ok := i.(*Disconnect); ok {
+		eh(s, t)
+	}
+}
+
+// entitlementCreateEventHandler is an event handler for EntitlementCreate events.
+type entitlementCreateEventHandler func(*Session, *EntitlementCreate)
+
+// Type returns the event type for EntitlementCreate events.
+func (eh entitlementCreateEventHandler) Type() string {
+	return entitlementCreateEventType
+}
+
+// New returns a new instance of EntitlementCreate.
+func (eh entitlementCreateEventHandler) New() interface{} {
+	return &EntitlementCreate{}
+}
+
+// Handle is the handler for EntitlementCreate events.
+func (eh entitlementCreateEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*EntitlementCreate); ok {
+		eh(s, t)
+	}
+}
+
+// entitlementDeleteEventHandler is an event handler for EntitlementDelete events.
+type entitlementDeleteEventHandler func(*Session, *EntitlementDelete)
+
+// Type returns the event type for EntitlementDelete events.
+func (eh entitlementDeleteEventHandler) Type() string {
+	return entitlementDeleteEventType
+}
+
+// New returns a new instance of EntitlementDelete.
+func (eh entitlementDeleteEventHandler) New() interface{} {
+	return &EntitlementDelete{}
+}
+
+// Handle is the handler for EntitlementDelete events.
+func (eh entitlementDeleteEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*EntitlementDelete); ok {
+		eh(s, t)
+	}
+}
+
+// entitlementUpdateEventHandler is an event handler for EntitlementUpdate events.
+type entitlementUpdateEventHandler func(*Session, *EntitlementUpdate)
+
+// Type returns the event type for EntitlementUpdate events.
+func (eh entitlementUpdateEventHandler) Type() string {
+	return entitlementUpdateEventType
+}
+
+// New returns a new instance of EntitlementUpdate.
+func (eh entitlementUpdateEventHandler) New() interface{} {
+	return &EntitlementUpdate{}
+}
+
+// Handle is the handler for EntitlementUpdate events.
+func (eh entitlementUpdateEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*EntitlementUpdate); ok {
 		eh(s, t)
 	}
 }
@@ -675,6 +747,26 @@ func (eh guildScheduledEventUserRemoveEventHandler) Handle(s *Session, i interfa
 	}
 }
 
+// guildStickersUpdateEventHandler is an event handler for GuildStickersUpdate events.
+type guildStickersUpdateEventHandler func(*Session, *GuildStickersUpdate)
+
+// Type returns the event type for GuildStickersUpdate events.
+func (eh guildStickersUpdateEventHandler) Type() string {
+	return guildStickersUpdateEventType
+}
+
+// New returns a new instance of GuildStickersUpdate.
+func (eh guildStickersUpdateEventHandler) New() interface{} {
+	return &GuildStickersUpdate{}
+}
+
+// Handle is the handler for GuildStickersUpdate events.
+func (eh guildStickersUpdateEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*GuildStickersUpdate); ok {
+		eh(s, t)
+	}
+}
+
 // guildUpdateEventHandler is an event handler for GuildUpdate events.
 type guildUpdateEventHandler func(*Session, *GuildUpdate)
 
@@ -691,6 +783,66 @@ func (eh guildUpdateEventHandler) New() interface{} {
 // Handle is the handler for GuildUpdate events.
 func (eh guildUpdateEventHandler) Handle(s *Session, i interface{}) {
 	if t, ok := i.(*GuildUpdate); ok {
+		eh(s, t)
+	}
+}
+
+// integrationCreateEventHandler is an event handler for IntegrationCreate events.
+type integrationCreateEventHandler func(*Session, *IntegrationCreate)
+
+// Type returns the event type for IntegrationCreate events.
+func (eh integrationCreateEventHandler) Type() string {
+	return integrationCreateEventType
+}
+
+// New returns a new instance of IntegrationCreate.
+func (eh integrationCreateEventHandler) New() interface{} {
+	return &IntegrationCreate{}
+}
+
+// Handle is the handler for IntegrationCreate events.
+func (eh integrationCreateEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*IntegrationCreate); ok {
+		eh(s, t)
+	}
+}
+
+// integrationDeleteEventHandler is an event handler for IntegrationDelete events.
+type integrationDeleteEventHandler func(*Session, *IntegrationDelete)
+
+// Type returns the event type for IntegrationDelete events.
+func (eh integrationDeleteEventHandler) Type() string {
+	return integrationDeleteEventType
+}
+
+// New returns a new instance of IntegrationDelete.
+func (eh integrationDeleteEventHandler) New() interface{} {
+	return &IntegrationDelete{}
+}
+
+// Handle is the handler for IntegrationDelete events.
+func (eh integrationDeleteEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*IntegrationDelete); ok {
+		eh(s, t)
+	}
+}
+
+// integrationUpdateEventHandler is an event handler for IntegrationUpdate events.
+type integrationUpdateEventHandler func(*Session, *IntegrationUpdate)
+
+// Type returns the event type for IntegrationUpdate events.
+func (eh integrationUpdateEventHandler) Type() string {
+	return integrationUpdateEventType
+}
+
+// New returns a new instance of IntegrationUpdate.
+func (eh integrationUpdateEventHandler) New() interface{} {
+	return &IntegrationUpdate{}
+}
+
+// Handle is the handler for IntegrationUpdate events.
+func (eh integrationUpdateEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*IntegrationUpdate); ok {
 		eh(s, t)
 	}
 }
@@ -811,6 +963,46 @@ func (eh messageDeleteBulkEventHandler) New() interface{} {
 // Handle is the handler for MessageDeleteBulk events.
 func (eh messageDeleteBulkEventHandler) Handle(s *Session, i interface{}) {
 	if t, ok := i.(*MessageDeleteBulk); ok {
+		eh(s, t)
+	}
+}
+
+// messagePollVoteAddEventHandler is an event handler for MessagePollVoteAdd events.
+type messagePollVoteAddEventHandler func(*Session, *MessagePollVoteAdd)
+
+// Type returns the event type for MessagePollVoteAdd events.
+func (eh messagePollVoteAddEventHandler) Type() string {
+	return messagePollVoteAddEventType
+}
+
+// New returns a new instance of MessagePollVoteAdd.
+func (eh messagePollVoteAddEventHandler) New() interface{} {
+	return &MessagePollVoteAdd{}
+}
+
+// Handle is the handler for MessagePollVoteAdd events.
+func (eh messagePollVoteAddEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*MessagePollVoteAdd); ok {
+		eh(s, t)
+	}
+}
+
+// messagePollVoteRemoveEventHandler is an event handler for MessagePollVoteRemove events.
+type messagePollVoteRemoveEventHandler func(*Session, *MessagePollVoteRemove)
+
+// Type returns the event type for MessagePollVoteRemove events.
+func (eh messagePollVoteRemoveEventHandler) Type() string {
+	return messagePollVoteRemoveEventType
+}
+
+// New returns a new instance of MessagePollVoteRemove.
+func (eh messagePollVoteRemoveEventHandler) New() interface{} {
+	return &MessagePollVoteRemove{}
+}
+
+// Handle is the handler for MessagePollVoteRemove events.
+func (eh messagePollVoteRemoveEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*MessagePollVoteRemove); ok {
 		eh(s, t)
 	}
 }
@@ -1046,6 +1238,66 @@ func (eh stageInstanceEventUpdateEventHandler) New() interface{} {
 // Handle is the handler for StageInstanceEventUpdate events.
 func (eh stageInstanceEventUpdateEventHandler) Handle(s *Session, i interface{}) {
 	if t, ok := i.(*StageInstanceEventUpdate); ok {
+		eh(s, t)
+	}
+}
+
+// subscriptionCreateEventHandler is an event handler for SubscriptionCreate events.
+type subscriptionCreateEventHandler func(*Session, *SubscriptionCreate)
+
+// Type returns the event type for SubscriptionCreate events.
+func (eh subscriptionCreateEventHandler) Type() string {
+	return subscriptionCreateEventType
+}
+
+// New returns a new instance of SubscriptionCreate.
+func (eh subscriptionCreateEventHandler) New() interface{} {
+	return &SubscriptionCreate{}
+}
+
+// Handle is the handler for SubscriptionCreate events.
+func (eh subscriptionCreateEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*SubscriptionCreate); ok {
+		eh(s, t)
+	}
+}
+
+// subscriptionDeleteEventHandler is an event handler for SubscriptionDelete events.
+type subscriptionDeleteEventHandler func(*Session, *SubscriptionDelete)
+
+// Type returns the event type for SubscriptionDelete events.
+func (eh subscriptionDeleteEventHandler) Type() string {
+	return subscriptionDeleteEventType
+}
+
+// New returns a new instance of SubscriptionDelete.
+func (eh subscriptionDeleteEventHandler) New() interface{} {
+	return &SubscriptionDelete{}
+}
+
+// Handle is the handler for SubscriptionDelete events.
+func (eh subscriptionDeleteEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*SubscriptionDelete); ok {
+		eh(s, t)
+	}
+}
+
+// subscriptionUpdateEventHandler is an event handler for SubscriptionUpdate events.
+type subscriptionUpdateEventHandler func(*Session, *SubscriptionUpdate)
+
+// Type returns the event type for SubscriptionUpdate events.
+func (eh subscriptionUpdateEventHandler) Type() string {
+	return subscriptionUpdateEventType
+}
+
+// New returns a new instance of SubscriptionUpdate.
+func (eh subscriptionUpdateEventHandler) New() interface{} {
+	return &SubscriptionUpdate{}
+}
+
+// Handle is the handler for SubscriptionUpdate events.
+func (eh subscriptionUpdateEventHandler) Handle(s *Session, i interface{}) {
+	if t, ok := i.(*SubscriptionUpdate); ok {
 		eh(s, t)
 	}
 }
@@ -1296,6 +1548,12 @@ func handlerForInterface(handler interface{}) EventHandler {
 		return connectEventHandler(v)
 	case func(*Session, *Disconnect):
 		return disconnectEventHandler(v)
+	case func(*Session, *EntitlementCreate):
+		return entitlementCreateEventHandler(v)
+	case func(*Session, *EntitlementDelete):
+		return entitlementDeleteEventHandler(v)
+	case func(*Session, *EntitlementUpdate):
+		return entitlementUpdateEventHandler(v)
 	case func(*Session, *Event):
 		return eventEventHandler(v)
 	case func(*Session, *GuildAuditLogEntryCreate):
@@ -1336,8 +1594,16 @@ func handlerForInterface(handler interface{}) EventHandler {
 		return guildScheduledEventUserAddEventHandler(v)
 	case func(*Session, *GuildScheduledEventUserRemove):
 		return guildScheduledEventUserRemoveEventHandler(v)
+	case func(*Session, *GuildStickersUpdate):
+		return guildStickersUpdateEventHandler(v)
 	case func(*Session, *GuildUpdate):
 		return guildUpdateEventHandler(v)
+	case func(*Session, *IntegrationCreate):
+		return integrationCreateEventHandler(v)
+	case func(*Session, *IntegrationDelete):
+		return integrationDeleteEventHandler(v)
+	case func(*Session, *IntegrationUpdate):
+		return integrationUpdateEventHandler(v)
 	case func(*Session, *InteractionCreate):
 		return interactionCreateEventHandler(v)
 	case func(*Session, *InviteCreate):
@@ -1350,6 +1616,10 @@ func handlerForInterface(handler interface{}) EventHandler {
 		return messageDeleteEventHandler(v)
 	case func(*Session, *MessageDeleteBulk):
 		return messageDeleteBulkEventHandler(v)
+	case func(*Session, *MessagePollVoteAdd):
+		return messagePollVoteAddEventHandler(v)
+	case func(*Session, *MessagePollVoteRemove):
+		return messagePollVoteRemoveEventHandler(v)
 	case func(*Session, *MessageReactionAdd):
 		return messageReactionAddEventHandler(v)
 	case func(*Session, *MessageReactionRemove):
@@ -1374,6 +1644,12 @@ func handlerForInterface(handler interface{}) EventHandler {
 		return stageInstanceEventDeleteEventHandler(v)
 	case func(*Session, *StageInstanceEventUpdate):
 		return stageInstanceEventUpdateEventHandler(v)
+	case func(*Session, *SubscriptionCreate):
+		return subscriptionCreateEventHandler(v)
+	case func(*Session, *SubscriptionDelete):
+		return subscriptionDeleteEventHandler(v)
+	case func(*Session, *SubscriptionUpdate):
+		return subscriptionUpdateEventHandler(v)
 	case func(*Session, *ThreadCreate):
 		return threadCreateEventHandler(v)
 	case func(*Session, *ThreadDelete):
@@ -1411,6 +1687,9 @@ func init() {
 	registerInterfaceProvider(channelDeleteEventHandler(nil))
 	registerInterfaceProvider(channelPinsUpdateEventHandler(nil))
 	registerInterfaceProvider(channelUpdateEventHandler(nil))
+	registerInterfaceProvider(entitlementCreateEventHandler(nil))
+	registerInterfaceProvider(entitlementDeleteEventHandler(nil))
+	registerInterfaceProvider(entitlementUpdateEventHandler(nil))
 	registerInterfaceProvider(guildAuditLogEntryCreateEventHandler(nil))
 	registerInterfaceProvider(guildBanAddEventHandler(nil))
 	registerInterfaceProvider(guildBanRemoveEventHandler(nil))
@@ -1430,13 +1709,19 @@ func init() {
 	registerInterfaceProvider(guildScheduledEventUpdateEventHandler(nil))
 	registerInterfaceProvider(guildScheduledEventUserAddEventHandler(nil))
 	registerInterfaceProvider(guildScheduledEventUserRemoveEventHandler(nil))
+	registerInterfaceProvider(guildStickersUpdateEventHandler(nil))
 	registerInterfaceProvider(guildUpdateEventHandler(nil))
+	registerInterfaceProvider(integrationCreateEventHandler(nil))
+	registerInterfaceProvider(integrationDeleteEventHandler(nil))
+	registerInterfaceProvider(integrationUpdateEventHandler(nil))
 	registerInterfaceProvider(interactionCreateEventHandler(nil))
 	registerInterfaceProvider(inviteCreateEventHandler(nil))
 	registerInterfaceProvider(inviteDeleteEventHandler(nil))
 	registerInterfaceProvider(messageCreateEventHandler(nil))
 	registerInterfaceProvider(messageDeleteEventHandler(nil))
 	registerInterfaceProvider(messageDeleteBulkEventHandler(nil))
+	registerInterfaceProvider(messagePollVoteAddEventHandler(nil))
+	registerInterfaceProvider(messagePollVoteRemoveEventHandler(nil))
 	registerInterfaceProvider(messageReactionAddEventHandler(nil))
 	registerInterfaceProvider(messageReactionRemoveEventHandler(nil))
 	registerInterfaceProvider(messageReactionRemoveAllEventHandler(nil))
@@ -1448,6 +1733,9 @@ func init() {
 	registerInterfaceProvider(stageInstanceEventCreateEventHandler(nil))
 	registerInterfaceProvider(stageInstanceEventDeleteEventHandler(nil))
 	registerInterfaceProvider(stageInstanceEventUpdateEventHandler(nil))
+	registerInterfaceProvider(subscriptionCreateEventHandler(nil))
+	registerInterfaceProvider(subscriptionDeleteEventHandler(nil))
+	registerInterfaceProvider(subscriptionUpdateEventHandler(nil))
 	registerInterfaceProvider(threadCreateEventHandler(nil))
 	registerInterfaceProvider(threadDeleteEventHandler(nil))
 	registerInterfaceProvider(threadListSyncEventHandler(nil))

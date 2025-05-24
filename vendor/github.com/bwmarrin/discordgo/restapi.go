@@ -178,13 +178,14 @@ func (s *Session) RequestWithBucketID(method, urlStr string, data interface{}, b
 		}
 	}
 
-	return s.request(method, urlStr, "application/json", body, bucketID, 0, options...)
+	return s.RequestRaw(method, urlStr, "application/json", body, bucketID, 0, options...)
 }
 
-// request makes a (GET/POST/...) Requests to Discord REST API.
+// RequestRaw makes a (GET/POST/...) Requests to Discord REST API.
+// Preferably use the other Request* methods but this lets you send JSON directly if that's what you have.
 // Sequence is the sequence number, if it fails with a 502 it will
 // retry with sequence+1 until it either succeeds or sequence >= session.MaxRestRetries
-func (s *Session) request(method, urlStr, contentType string, b []byte, bucketID string, sequence int, options ...RequestOption) (response []byte, err error) {
+func (s *Session) RequestRaw(method, urlStr, contentType string, b []byte, bucketID string, sequence int, options ...RequestOption) (response []byte, err error) {
 	if bucketID == "" {
 		bucketID = strings.SplitN(urlStr, "?", 2)[0]
 	}
@@ -358,7 +359,7 @@ func (s *Session) UserAvatarDecode(u *User, options ...RequestOption) (img image
 }
 
 // UserUpdate updates current user settings.
-func (s *Session) UserUpdate(username, avatar string, options ...RequestOption) (st *User, err error) {
+func (s *Session) UserUpdate(username, avatar, banner string, options ...RequestOption) (st *User, err error) {
 
 	// NOTE: Avatar must be either the hash/id of existing Avatar or
 	// data:image/png;base64,BASE64_STRING_OF_NEW_AVATAR_PNG
@@ -368,7 +369,8 @@ func (s *Session) UserUpdate(username, avatar string, options ...RequestOption) 
 	data := struct {
 		Username string `json:"username,omitempty"`
 		Avatar   string `json:"avatar,omitempty"`
-	}{username, avatar}
+		Banner   string `json:"banner,omitempty"`
+	}{username, avatar, banner}
 
 	body, err := s.RequestWithBucketID("PATCH", EndpointUser("@me"), data, EndpointUsers, options...)
 	if err != nil {
@@ -1011,7 +1013,7 @@ func (s *Session) GuildMemberRoleRemove(guildID, userID, roleID string, options 
 // guildID   : The ID of a Guild.
 func (s *Session) GuildChannels(guildID string, options ...RequestOption) (st []*Channel, err error) {
 
-	body, err := s.request("GET", EndpointGuildChannels(guildID), "", nil, EndpointGuildChannels(guildID), 0, options...)
+	body, err := s.RequestRaw("GET", EndpointGuildChannels(guildID), "", nil, EndpointGuildChannels(guildID), 0, options...)
 	if err != nil {
 		return
 	}
@@ -1453,6 +1455,76 @@ func (s *Session) GuildEmojiDelete(guildID, emojiID string, options ...RequestOp
 	return
 }
 
+// ApplicationEmojis returns all emojis for the given application
+// appID : ID of the application
+func (s *Session) ApplicationEmojis(appID string, options ...RequestOption) (emojis []*Emoji, err error) {
+	body, err := s.RequestWithBucketID("GET", EndpointApplicationEmojis(appID), nil, EndpointApplicationEmojis(appID), options...)
+	if err != nil {
+		return
+	}
+
+	var temp struct {
+		Items []*Emoji `json:"items"`
+	}
+
+	err = unmarshal(body, &temp)
+	if err != nil {
+		return
+	}
+
+	emojis = temp.Items
+	return
+}
+
+// ApplicationEmoji returns the emoji for the given application.
+// appID   : ID of the application
+// emojiID : ID of an Emoji to retrieve
+func (s *Session) ApplicationEmoji(appID, emojiID string, options ...RequestOption) (emoji *Emoji, err error) {
+	var body []byte
+	body, err = s.RequestWithBucketID("GET", EndpointApplicationEmoji(appID, emojiID), nil, EndpointApplicationEmoji(appID, emojiID), options...)
+	if err != nil {
+		return
+	}
+
+	err = unmarshal(body, &emoji)
+	return
+}
+
+// ApplicationEmojiCreate creates a new Emoji for the given application.
+// appID : ID of the application
+// data  : New Emoji data
+func (s *Session) ApplicationEmojiCreate(appID string, data *EmojiParams, options ...RequestOption) (emoji *Emoji, err error) {
+	body, err := s.RequestWithBucketID("POST", EndpointApplicationEmojis(appID), data, EndpointApplicationEmojis(appID), options...)
+	if err != nil {
+		return
+	}
+
+	err = unmarshal(body, &emoji)
+	return
+}
+
+// ApplicationEmojiEdit modifies and returns updated Emoji for the given application.
+// appID   : ID of the application
+// emojiID : ID of an Emoji
+// data    : Updated Emoji data
+func (s *Session) ApplicationEmojiEdit(appID string, emojiID string, data *EmojiParams, options ...RequestOption) (emoji *Emoji, err error) {
+	body, err := s.RequestWithBucketID("PATCH", EndpointApplicationEmoji(appID, emojiID), data, EndpointApplicationEmojis(appID), options...)
+	if err != nil {
+		return
+	}
+
+	err = unmarshal(body, &emoji)
+	return
+}
+
+// ApplicationEmojiDelete deletes an Emoji for the given application.
+// appID   : ID of the application
+// emojiID : ID of an Emoji
+func (s *Session) ApplicationEmojiDelete(appID, emojiID string, options ...RequestOption) (err error) {
+	_, err = s.RequestWithBucketID("DELETE", EndpointApplicationEmoji(appID, emojiID), nil, EndpointApplicationEmojis(appID), options...)
+	return
+}
+
 // GuildTemplate returns a GuildTemplate for the given code
 // templateCode: The Code of a GuildTemplate
 func (s *Session) GuildTemplate(templateCode string, options ...RequestOption) (st *GuildTemplate, err error) {
@@ -1712,7 +1784,7 @@ func (s *Session) ChannelMessageSendComplex(channelID string, data *MessageSend,
 		if encodeErr != nil {
 			return st, encodeErr
 		}
-		response, err = s.request("POST", endpoint, contentType, body, endpoint, 0, options...)
+		response, err = s.RequestRaw("POST", endpoint, contentType, body, endpoint, 0, options...)
 	} else {
 		response, err = s.RequestWithBucketID("POST", endpoint, data, endpoint, options...)
 	}
@@ -1824,7 +1896,7 @@ func (s *Session) ChannelMessageEditComplex(m *MessageEdit, options ...RequestOp
 		if encodeErr != nil {
 			return st, encodeErr
 		}
-		response, err = s.request("PATCH", endpoint, contentType, body, EndpointChannelMessage(m.Channel, ""), 0, options...)
+		response, err = s.RequestRaw("PATCH", endpoint, contentType, body, EndpointChannelMessage(m.Channel, ""), 0, options...)
 	} else {
 		response, err = s.RequestWithBucketID("PATCH", endpoint, m, EndpointChannelMessage(m.Channel, ""), options...)
 	}
@@ -2361,7 +2433,7 @@ func (s *Session) webhookExecute(webhookID, token string, wait bool, threadID st
 			return st, encodeErr
 		}
 
-		response, err = s.request("POST", uri, contentType, body, uri, 0, options...)
+		response, err = s.RequestRaw("POST", uri, contentType, body, uri, 0, options...)
 	} else {
 		response, err = s.RequestWithBucketID("POST", uri, data, uri, options...)
 	}
@@ -2421,7 +2493,7 @@ func (s *Session) WebhookMessageEdit(webhookID, token, messageID string, data *W
 			return nil, err
 		}
 
-		response, err = s.request("PATCH", uri, contentType, body, uri, 0, options...)
+		response, err = s.RequestRaw("PATCH", uri, contentType, body, uri, 0, options...)
 		if err != nil {
 			return nil, err
 		}
@@ -2641,7 +2713,7 @@ func (s *Session) ForumThreadStartComplex(channelID string, threadData *ThreadSt
 			return th, encodeErr
 		}
 
-		response, err = s.request("POST", endpoint, contentType, body, endpoint, 0, options...)
+		response, err = s.RequestRaw("POST", endpoint, contentType, body, endpoint, 0, options...)
 	} else {
 		response, err = s.RequestWithBucketID("POST", endpoint, data, endpoint, options...)
 	}
@@ -3071,7 +3143,7 @@ func (s *Session) InteractionRespond(interaction *Interaction, resp *Interaction
 			return err
 		}
 
-		_, err = s.request("POST", endpoint, contentType, body, endpoint, 0, options...)
+		_, err = s.RequestRaw("POST", endpoint, contentType, body, endpoint, 0, options...)
 		return err
 	}
 
@@ -3451,5 +3523,185 @@ func (s *Session) UserApplicationRoleConnectionUpdate(appID string, rconn *Appli
 	}
 
 	err = unmarshal(body, &st)
+	return
+}
+
+// ----------------------------------------------------------------------
+// Functions specific to polls
+// ----------------------------------------------------------------------
+
+// PollAnswerVoters returns users who voted for a particular answer in a poll on the specified message.
+// channelID : ID of the channel.
+// messageID : ID of the message.
+// answerID  : ID of the answer.
+func (s *Session) PollAnswerVoters(channelID, messageID string, answerID int) (voters []*User, err error) {
+	endpoint := EndpointPollAnswerVoters(channelID, messageID, answerID)
+
+	var body []byte
+	body, err = s.RequestWithBucketID("GET", endpoint, nil, endpoint)
+	if err != nil {
+		return
+	}
+
+	var r struct {
+		Users []*User `json:"users"`
+	}
+
+	err = unmarshal(body, &r)
+	if err != nil {
+		return
+	}
+
+	voters = r.Users
+	return
+}
+
+// PollExpire expires poll on the specified message.
+// channelID : ID of the channel.
+// messageID : ID of the message.
+func (s *Session) PollExpire(channelID, messageID string) (msg *Message, err error) {
+	endpoint := EndpointPollExpire(channelID, messageID)
+
+	var body []byte
+	body, err = s.RequestWithBucketID("POST", endpoint, nil, endpoint)
+	if err != nil {
+		return
+	}
+
+	err = unmarshal(body, &msg)
+	return
+}
+
+// ----------------------------------------------------------------------
+// Functions specific to monetization
+// ----------------------------------------------------------------------
+
+// SKUs returns all SKUs for a given application.
+// appID : The ID of the application.
+func (s *Session) SKUs(appID string) (skus []*SKU, err error) {
+	endpoint := EndpointApplicationSKUs(appID)
+
+	body, err := s.RequestWithBucketID("GET", endpoint, nil, endpoint)
+	if err != nil {
+		return
+	}
+
+	err = unmarshal(body, &skus)
+	return
+}
+
+// Entitlements returns all Entitlements for a given app, active and expired.
+// appID			: The ID of the application.
+// filterOptions	: Optional filter options; otherwise set it to nil.
+func (s *Session) Entitlements(appID string, filterOptions *EntitlementFilterOptions, options ...RequestOption) (entitlements []*Entitlement, err error) {
+	endpoint := EndpointEntitlements(appID)
+
+	queryParams := url.Values{}
+	if filterOptions != nil {
+		if filterOptions.UserID != "" {
+			queryParams.Set("user_id", filterOptions.UserID)
+		}
+		if filterOptions.SkuIDs != nil && len(filterOptions.SkuIDs) > 0 {
+			queryParams.Set("sku_ids", strings.Join(filterOptions.SkuIDs, ","))
+		}
+		if filterOptions.Before != nil {
+			queryParams.Set("before", filterOptions.Before.Format(time.RFC3339))
+		}
+		if filterOptions.After != nil {
+			queryParams.Set("after", filterOptions.After.Format(time.RFC3339))
+		}
+		if filterOptions.Limit > 0 {
+			queryParams.Set("limit", strconv.Itoa(filterOptions.Limit))
+		}
+		if filterOptions.GuildID != "" {
+			queryParams.Set("guild_id", filterOptions.GuildID)
+		}
+		if filterOptions.ExcludeEnded {
+			queryParams.Set("exclude_ended", "true")
+		}
+	}
+
+	body, err := s.RequestWithBucketID("GET", endpoint+"?"+queryParams.Encode(), nil, endpoint, options...)
+	if err != nil {
+		return
+	}
+
+	err = unmarshal(body, &entitlements)
+	return
+}
+
+// EntitlementConsume marks a given One-Time Purchase for the user as consumed.
+func (s *Session) EntitlementConsume(appID, entitlementID string, options ...RequestOption) (err error) {
+	_, err = s.RequestWithBucketID("POST", EndpointEntitlementConsume(appID, entitlementID), nil, EndpointEntitlementConsume(appID, ""), options...)
+	return
+}
+
+// EntitlementTestCreate creates a test entitlement to a given SKU for a given guild or user.
+// Discord will act as though that user or guild has entitlement to your premium offering.
+func (s *Session) EntitlementTestCreate(appID string, data *EntitlementTest, options ...RequestOption) (err error) {
+	endpoint := EndpointEntitlements(appID)
+
+	_, err = s.RequestWithBucketID("POST", endpoint, data, endpoint, options...)
+	return
+}
+
+// EntitlementTestDelete deletes a currently-active test entitlement. Discord will act as though
+// that user or guild no longer has entitlement to your premium offering.
+func (s *Session) EntitlementTestDelete(appID, entitlementID string, options ...RequestOption) (err error) {
+	_, err = s.RequestWithBucketID("DELETE", EndpointEntitlement(appID, entitlementID), nil, EndpointEntitlement(appID, ""), options...)
+	return
+}
+
+// Subscriptions returns all subscriptions containing the SKU.
+// skuID : The ID of the SKU.
+// userID : User ID for which to return subscriptions. Required except for OAuth queries.
+// before : Optional timestamp to retrieve subscriptions before this time.
+// after : Optional timestamp to retrieve subscriptions after this time.
+// limit : Optional maximum number of subscriptions to return (1-100, default 50).
+func (s *Session) Subscriptions(skuID string, userID string, before, after *time.Time, limit int, options ...RequestOption) (subscriptions []*Subscription, err error) {
+	endpoint := EndpointSubscriptions(skuID)
+
+	queryParams := url.Values{}
+	if before != nil {
+		queryParams.Set("before", before.Format(time.RFC3339))
+	}
+	if after != nil {
+		queryParams.Set("after", after.Format(time.RFC3339))
+	}
+	if userID != "" {
+		queryParams.Set("user_id", userID)
+	}
+	if limit > 0 {
+		queryParams.Set("limit", strconv.Itoa(limit))
+	}
+
+	body, err := s.RequestWithBucketID("GET", endpoint+"?"+queryParams.Encode(), nil, endpoint, options...)
+	if err != nil {
+		return
+	}
+
+	err = unmarshal(body, &subscriptions)
+	return
+}
+
+// Subscription returns a subscription by its SKU and subscription ID.
+// skuID : The ID of the SKU.
+// subscriptionID : The ID of the subscription.
+// userID : User ID for which to return the subscription. Required except for OAuth queries.
+func (s *Session) Subscription(skuID, subscriptionID, userID string, options ...RequestOption) (subscription *Subscription, err error) {
+	endpoint := EndpointSubscription(skuID, subscriptionID)
+
+	queryParams := url.Values{}
+	if userID != "" {
+		// Unlike stated in the documentation, the user_id parameter is required here.
+		queryParams.Set("user_id", userID)
+	}
+
+	body, err := s.RequestWithBucketID("GET", endpoint+"?"+queryParams.Encode(), nil, endpoint, options...)
+	if err != nil {
+		return
+	}
+
+	err = unmarshal(body, &subscription)
 	return
 }

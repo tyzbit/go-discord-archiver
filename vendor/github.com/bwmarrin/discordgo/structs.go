@@ -136,26 +136,49 @@ type Session struct {
 	wsMutex sync.Mutex
 }
 
+// ApplicationIntegrationType dictates where application can be installed and its available interaction contexts.
+type ApplicationIntegrationType uint
+
+const (
+	// ApplicationIntegrationGuildInstall indicates that app is installable to guilds.
+	ApplicationIntegrationGuildInstall ApplicationIntegrationType = 0
+	// ApplicationIntegrationUserInstall indicates that app is installable to users.
+	ApplicationIntegrationUserInstall ApplicationIntegrationType = 1
+)
+
+// ApplicationInstallParams represents application's installation parameters
+// for default in-app oauth2 authorization link.
+type ApplicationInstallParams struct {
+	Scopes      []string `json:"scopes"`
+	Permissions int64    `json:"permissions,string"`
+}
+
+// ApplicationIntegrationTypeConfig represents application's configuration for a particular integration type.
+type ApplicationIntegrationTypeConfig struct {
+	OAuth2InstallParams *ApplicationInstallParams `json:"oauth2_install_params,omitempty"`
+}
+
 // Application stores values for a Discord Application
 type Application struct {
-	ID                  string   `json:"id,omitempty"`
-	Name                string   `json:"name"`
-	Icon                string   `json:"icon,omitempty"`
-	Description         string   `json:"description,omitempty"`
-	RPCOrigins          []string `json:"rpc_origins,omitempty"`
-	BotPublic           bool     `json:"bot_public,omitempty"`
-	BotRequireCodeGrant bool     `json:"bot_require_code_grant,omitempty"`
-	TermsOfServiceURL   string   `json:"terms_of_service_url"`
-	PrivacyProxyURL     string   `json:"privacy_policy_url"`
-	Owner               *User    `json:"owner"`
-	Summary             string   `json:"summary"`
-	VerifyKey           string   `json:"verify_key"`
-	Team                *Team    `json:"team"`
-	GuildID             string   `json:"guild_id"`
-	PrimarySKUID        string   `json:"primary_sku_id"`
-	Slug                string   `json:"slug"`
-	CoverImage          string   `json:"cover_image"`
-	Flags               int      `json:"flags,omitempty"`
+	ID                     string                                                           `json:"id,omitempty"`
+	Name                   string                                                           `json:"name"`
+	Icon                   string                                                           `json:"icon,omitempty"`
+	Description            string                                                           `json:"description,omitempty"`
+	RPCOrigins             []string                                                         `json:"rpc_origins,omitempty"`
+	BotPublic              bool                                                             `json:"bot_public,omitempty"`
+	BotRequireCodeGrant    bool                                                             `json:"bot_require_code_grant,omitempty"`
+	TermsOfServiceURL      string                                                           `json:"terms_of_service_url"`
+	PrivacyProxyURL        string                                                           `json:"privacy_policy_url"`
+	Owner                  *User                                                            `json:"owner"`
+	Summary                string                                                           `json:"summary"`
+	VerifyKey              string                                                           `json:"verify_key"`
+	Team                   *Team                                                            `json:"team"`
+	GuildID                string                                                           `json:"guild_id"`
+	PrimarySKUID           string                                                           `json:"primary_sku_id"`
+	Slug                   string                                                           `json:"slug"`
+	CoverImage             string                                                           `json:"cover_image"`
+	Flags                  int                                                              `json:"flags,omitempty"`
+	IntegrationTypesConfig map[ApplicationIntegrationType]*ApplicationIntegrationTypeConfig `json:"integration_types,omitempty"`
 }
 
 // ApplicationRoleConnectionMetadataType represents the type of application role connection metadata.
@@ -233,9 +256,13 @@ type IntegrationAccount struct {
 }
 
 // A VoiceRegion stores data for a specific voice region server.
+// https://discord.com/developers/docs/resources/voice#voice-region-object
 type VoiceRegion struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Optimal    bool   `json:"optimal"`
+	Deprecated bool   `json:"deprecated"`
+	Custom     bool   `json:"custom"`
 }
 
 // InviteTargetType indicates the type of target of an invite
@@ -585,7 +612,7 @@ type Emoji struct {
 
 // EmojiRegex is the regex used to find and identify emojis in messages
 var (
-	EmojiRegex = regexp.MustCompile(`<(a|):[A-z0-9_~]+:[0-9]{18,20}>`)
+	EmojiRegex = regexp.MustCompile(`<(a|):[A-Za-z0-9_~]+:[0-9]{18,20}>`)
 )
 
 // MessageFormat returns a correctly formatted Emoji for use in Message content and embeds
@@ -620,6 +647,7 @@ type EmojiParams struct {
 	// NOTE: can be only set on creation.
 	Image string `json:"image,omitempty"`
 	// Roles for which this emoji will be available.
+	// NOTE: can not be used with application emoji endpoints.
 	Roles []string `json:"roles,omitempty"`
 }
 
@@ -1291,27 +1319,35 @@ type GuildFeature string
 
 // Constants for GuildFeature
 const (
-	GuildFeatureAnimatedBanner                GuildFeature = "ANIMATED_BANNER"
-	GuildFeatureAnimatedIcon                  GuildFeature = "ANIMATED_ICON"
-	GuildFeatureAutoModeration                GuildFeature = "AUTO_MODERATION"
-	GuildFeatureBanner                        GuildFeature = "BANNER"
-	GuildFeatureCommunity                     GuildFeature = "COMMUNITY"
-	GuildFeatureDiscoverable                  GuildFeature = "DISCOVERABLE"
-	GuildFeatureFeaturable                    GuildFeature = "FEATURABLE"
-	GuildFeatureInviteSplash                  GuildFeature = "INVITE_SPLASH"
-	GuildFeatureMemberVerificationGateEnabled GuildFeature = "MEMBER_VERIFICATION_GATE_ENABLED"
-	GuildFeatureMonetizationEnabled           GuildFeature = "MONETIZATION_ENABLED"
-	GuildFeatureMoreStickers                  GuildFeature = "MORE_STICKERS"
-	GuildFeatureNews                          GuildFeature = "NEWS"
-	GuildFeaturePartnered                     GuildFeature = "PARTNERED"
-	GuildFeaturePreviewEnabled                GuildFeature = "PREVIEW_ENABLED"
-	GuildFeaturePrivateThreads                GuildFeature = "PRIVATE_THREADS"
-	GuildFeatureRoleIcons                     GuildFeature = "ROLE_ICONS"
-	GuildFeatureTicketedEventsEnabled         GuildFeature = "TICKETED_EVENTS_ENABLED"
-	GuildFeatureVanityURL                     GuildFeature = "VANITY_URL"
-	GuildFeatureVerified                      GuildFeature = "VERIFIED"
-	GuildFeatureVipRegions                    GuildFeature = "VIP_REGIONS"
-	GuildFeatureWelcomeScreenEnabled          GuildFeature = "WELCOME_SCREEN_ENABLED"
+	GuildFeatureAnimatedBanner                        GuildFeature = "ANIMATED_BANNER"
+	GuildFeatureAnimatedIcon                          GuildFeature = "ANIMATED_ICON"
+	GuildFeatureApplicationCommandPermissionV2        GuildFeature = "APPLICATION_COMMAND_PERMISSIONS_V2"
+	GuildFeatureAutoModeration                        GuildFeature = "AUTO_MODERATION"
+	GuildFeatureBanner                                GuildFeature = "BANNER"
+	GuildFeatureCommunity                             GuildFeature = "COMMUNITY"
+	GuildFeatureCreatorMonetizableProvisional         GuildFeature = "CREATOR_MONETIZABLE_PROVISIONAL"
+	GuildFeatureCreatorStorePage                      GuildFeature = "CREATOR_STORE_PAGE"
+	GuildFeatureDeveloperSupportServer                GuildFeature = "DEVELOPER_SUPPORT_SERVER"
+	GuildFeatureDiscoverable                          GuildFeature = "DISCOVERABLE"
+	GuildFeatureFeaturable                            GuildFeature = "FEATURABLE"
+	GuildFeatureInvitesDisabled                       GuildFeature = "INVITES_DISABLED"
+	GuildFeatureInviteSplash                          GuildFeature = "INVITE_SPLASH"
+	GuildFeatureMemberVerificationGateEnabled         GuildFeature = "MEMBER_VERIFICATION_GATE_ENABLED"
+	GuildFeatureMoreSoundboard                        GuildFeature = "MORE_SOUNDBOARD"
+	GuildFeatureMoreStickers                          GuildFeature = "MORE_STICKERS"
+	GuildFeatureNews                                  GuildFeature = "NEWS"
+	GuildFeaturePartnered                             GuildFeature = "PARTNERED"
+	GuildFeaturePreviewEnabled                        GuildFeature = "PREVIEW_ENABLED"
+	GuildFeatureRaidAlertsDisabled                    GuildFeature = "RAID_ALERTS_DISABLED"
+	GuildFeatureRoleIcons                             GuildFeature = "ROLE_ICONS"
+	GuildFeatureRoleSubscriptionsAvailableForPurchase GuildFeature = "ROLE_SUBSCRIPTIONS_AVAILABLE_FOR_PURCHASE"
+	GuildFeatureRoleSubscriptionsEnabled              GuildFeature = "ROLE_SUBSCRIPTIONS_ENABLED"
+	GuildFeatureSoundboard                            GuildFeature = "SOUNDBOARD"
+	GuildFeatureTicketedEventsEnabled                 GuildFeature = "TICKETED_EVENTS_ENABLED"
+	GuildFeatureVanityURL                             GuildFeature = "VANITY_URL"
+	GuildFeatureVerified                              GuildFeature = "VERIFIED"
+	GuildFeatureVipRegions                            GuildFeature = "VIP_REGIONS"
+	GuildFeatureWelcomeScreenEnabled                  GuildFeature = "WELCOME_SCREEN_ENABLED"
 )
 
 // A GuildParams stores all the data needed to update discord guild settings
@@ -1538,6 +1574,9 @@ type Member struct {
 	// The hash of the avatar for the guild member, if any.
 	Avatar string `json:"avatar"`
 
+	// The hash of the banner for the guild member, if any.
+	Banner string `json:"banner"`
+
 	// The underlying user on which the member is based.
 	User *User `json:"user"`
 
@@ -1582,13 +1621,29 @@ func (m *Member) AvatarURL(size string) string {
 
 }
 
+// BannerURL returns the URL of the member's banner image.
+//
+//	size:    The size of the desired banner image as a power of two
+//	         Image size can be any power of two between 16 and 4096.
+func (m *Member) BannerURL(size string) string {
+	if m.Banner == "" {
+		return m.User.BannerURL(size)
+	}
+	return bannerURL(
+		m.Banner,
+		EndpointGuildMemberBanner(m.GuildID, m.User.ID, m.Banner),
+		EndpointGuildMemberBannerAnimated(m.GuildID, m.User.ID, m.Banner),
+		size,
+	)
+}
+
 // DisplayName returns the member's guild nickname if they have one,
 // otherwise it returns their discord display name.
 func (m *Member) DisplayName() string {
 	if m.Nick != "" {
 		return m.Nick
 	}
-	return m.User.GlobalName
+	return m.User.DisplayName()
 }
 
 // ClientStatus stores the online, offline, idle, or dnd status of each device of a Guild member.
@@ -1743,6 +1798,10 @@ type AutoModerationActionMetadata struct {
 	// Timeout duration in seconds (maximum of 2419200 - 4 weeks).
 	// NOTE: should be only used with timeout action type.
 	Duration int `json:"duration_seconds,omitempty"`
+
+	// Additional explanation that will be shown to members whenever their message is blocked (maximum of 150 characters).
+	// NOTE: should be only used with block message action type.
+	CustomMessage string `json:"custom_message,omitempty"`
 }
 
 // AutoModerationAction stores data for an auto moderation action.
@@ -1891,8 +1950,8 @@ const (
 	AuditLogChangeKeyPrivacylevel AuditLogChangeKey = "privacy_level"
 	// AuditLogChangeKeyPruneDeleteDays is sent when number of days after which inactive and role-unassigned members are kicked changed (int) - guild
 	AuditLogChangeKeyPruneDeleteDays AuditLogChangeKey = "prune_delete_days"
-	// AuditLogChangeKeyPulibUpdatesChannelID is sent when id of the public updates channel changed (snowflake) - guild
-	AuditLogChangeKeyPulibUpdatesChannelID AuditLogChangeKey = "public_updates_channel_id"
+	// AuditLogChangeKeyPublicUpdatesChannelID is sent when id of the public updates channel changed (snowflake) - guild
+	AuditLogChangeKeyPublicUpdatesChannelID AuditLogChangeKey = "public_updates_channel_id"
 	// AuditLogChangeKeyRateLimitPerUser is sent when amount of seconds a user has to wait before sending another message changed (int) - channel
 	AuditLogChangeKeyRateLimitPerUser AuditLogChangeKey = "rate_limit_per_user"
 	// AuditLogChangeKeyRegion is sent when region changed (string) - guild
@@ -2038,6 +2097,15 @@ const (
 
 	AuditLogActionCreatorMonetizationRequestCreated AuditLogAction = 150
 	AuditLogActionCreatorMonetizationTermsAccepted  AuditLogAction = 151
+
+	AuditLogActionOnboardingPromptCreate AuditLogAction = 163
+	AuditLogActionOnboardingPromptUpdate AuditLogAction = 164
+	AuditLogActionOnboardingPromptDelete AuditLogAction = 165
+	AuditLogActionOnboardingCreate       AuditLogAction = 166
+	AuditLogActionOnboardingUpdate       AuditLogAction = 167
+
+	AuditLogActionHomeSettingsCreate = 190
+	AuditLogActionHomeSettingsUpdate = 191
 )
 
 // GuildMemberParams stores data needed to update a member
@@ -2176,7 +2244,7 @@ func (activity *Activity) UnmarshalJSON(b []byte) error {
 		Type          ActivityType `json:"type"`
 		URL           string       `json:"url,omitempty"`
 		CreatedAt     int64        `json:"created_at"`
-		ApplicationID string       `json:"application_id,omitempty"`
+		ApplicationID json.Number  `json:"application_id,omitempty"`
 		State         string       `json:"state,omitempty"`
 		Details       string       `json:"details,omitempty"`
 		Timestamps    TimeStamps   `json:"timestamps,omitempty"`
@@ -2191,8 +2259,8 @@ func (activity *Activity) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
+	activity.ApplicationID = temp.ApplicationID.String()
 	activity.CreatedAt = time.Unix(0, temp.CreatedAt*1000000)
-	activity.ApplicationID = temp.ApplicationID
 	activity.Assets = temp.Assets
 	activity.Details = temp.Details
 	activity.Emoji = temp.Emoji
@@ -2302,63 +2370,426 @@ const (
 	StageInstancePrivacyLevelGuildOnly StageInstancePrivacyLevel = 2
 )
 
+// PollLayoutType represents the layout of a poll.
+type PollLayoutType int
+
+// Valid PollLayoutType values.
+const (
+	PollLayoutTypeDefault PollLayoutType = 1
+)
+
+// PollMedia contains common data used by question and answers.
+type PollMedia struct {
+	Text  string          `json:"text,omitempty"`
+	Emoji *ComponentEmoji `json:"emoji,omitempty"` // TODO: rename the type
+}
+
+// PollAnswer represents a single answer in a poll.
+type PollAnswer struct {
+	// NOTE: should not be set on creation.
+	AnswerID int        `json:"answer_id,omitempty"`
+	Media    *PollMedia `json:"poll_media"`
+}
+
+// PollAnswerCount stores counted poll votes for a single answer.
+type PollAnswerCount struct {
+	ID      int  `json:"id"`
+	Count   int  `json:"count"`
+	MeVoted bool `json:"me_voted"`
+}
+
+// PollResults contains voting results on a poll.
+type PollResults struct {
+	Finalized    bool               `json:"is_finalized"`
+	AnswerCounts []*PollAnswerCount `json:"answer_counts"`
+}
+
+// Poll contains all poll related data.
+type Poll struct {
+	Question         PollMedia      `json:"question"`
+	Answers          []PollAnswer   `json:"answers"`
+	AllowMultiselect bool           `json:"allow_multiselect"`
+	LayoutType       PollLayoutType `json:"layout_type,omitempty"`
+
+	// NOTE: should be set only on creation, when fetching use Expiry.
+	Duration int `json:"duration,omitempty"`
+
+	// NOTE: available only when fetching.
+
+	Results *PollResults `json:"results,omitempty"`
+	// NOTE: as Discord documentation notes, this field might be null even when fetching.
+	Expiry *time.Time `json:"expiry,omitempty"`
+}
+
+// SKUType is the type of SKU (see SKUType* consts)
+// https://discord.com/developers/docs/monetization/skus
+type SKUType int
+
+// Valid SKUType values
+const (
+	SKUTypeDurable      SKUType = 2
+	SKUTypeConsumable   SKUType = 3
+	SKUTypeSubscription SKUType = 5
+	// SKUTypeSubscriptionGroup is a system-generated group for each subscription SKU.
+	SKUTypeSubscriptionGroup SKUType = 6
+)
+
+// SKUFlags is a bitfield of flags used to differentiate user and server subscriptions (see SKUFlag* consts)
+// https://discord.com/developers/docs/monetization/skus#sku-object-sku-flags
+type SKUFlags int
+
+const (
+	// SKUFlagAvailable indicates that the SKU is available for purchase.
+	SKUFlagAvailable SKUFlags = 1 << 2
+	// SKUFlagGuildSubscription indicates that the SKU is a guild subscription.
+	SKUFlagGuildSubscription SKUFlags = 1 << 7
+	// SKUFlagUserSubscription indicates that the SKU is a user subscription.
+	SKUFlagUserSubscription SKUFlags = 1 << 8
+)
+
+// SKU (stock-keeping units) represent premium offerings
+type SKU struct {
+	// The ID of the SKU
+	ID string `json:"id"`
+
+	// The Type of the SKU
+	Type SKUType `json:"type"`
+
+	// The ID of the parent application
+	ApplicationID string `json:"application_id"`
+
+	// Customer-facing name of the SKU.
+	Name string `json:"name"`
+
+	// System-generated URL slug based on the SKU's name.
+	Slug string `json:"slug"`
+
+	// SKUFlags combined as a bitfield. The presence of a certain flag can be checked
+	// by performing a bitwise AND operation between this int and the flag.
+	Flags SKUFlags `json:"flags"`
+}
+
+// Subscription represents a user making recurring payments for at least one SKU over an ongoing period.
+// https://discord.com/developers/docs/resources/subscription#subscription-object
+type Subscription struct {
+	// ID of the subscription
+	ID string `json:"id"`
+
+	// ID of the user who is subscribed
+	UserID string `json:"user_id"`
+
+	// List of SKUs subscribed to
+	SKUIDs []string `json:"sku_ids"`
+
+	// List of entitlements granted for this subscription
+	EntitlementIDs []string `json:"entitlement_ids"`
+
+	// List of SKUs that this user will be subscribed to at renewal
+	RenewalSKUIDs []string `json:"renewal_sku_ids,omitempty"`
+
+	// Start of the current subscription period
+	CurrentPeriodStart time.Time `json:"current_period_start"`
+
+	// End of the current subscription period
+	CurrentPeriodEnd time.Time `json:"current_period_end"`
+
+	// Current status of the subscription
+	Status SubscriptionStatus `json:"status"`
+
+	// When the subscription was canceled. Only present if the subscription has been canceled.
+	CanceledAt *time.Time `json:"canceled_at,omitempty"`
+
+	// ISO3166-1 alpha-2 country code of the payment source used to purchase the subscription. Missing unless queried with a private OAuth scope.
+	Country string `json:"country,omitempty"`
+}
+
+// SubscriptionStatus is the current status of a Subscription Object
+// https://discord.com/developers/docs/resources/subscription#subscription-statuses
+type SubscriptionStatus int
+
+// Valid SubscriptionStatus values
+const (
+	SubscriptionStatusActive   = 0
+	SubscriptionStatusEnding   = 1
+	SubscriptionStatusInactive = 2
+)
+
+// EntitlementType is the type of entitlement (see EntitlementType* consts)
+// https://discord.com/developers/docs/monetization/entitlements#entitlement-object-entitlement-types
+type EntitlementType int
+
+// Valid EntitlementType values
+const (
+	EntitlementTypePurchase                = 1
+	EntitlementTypePremiumSubscription     = 2
+	EntitlementTypeDeveloperGift           = 3
+	EntitlementTypeTestModePurchase        = 4
+	EntitlementTypeFreePurchase            = 5
+	EntitlementTypeUserGift                = 6
+	EntitlementTypePremiumPurchase         = 7
+	EntitlementTypeApplicationSubscription = 8
+)
+
+// Entitlement represents that a user or guild has access to a premium offering
+// in your application.
+type Entitlement struct {
+	// The ID of the entitlement
+	ID string `json:"id"`
+
+	// The ID of the SKU
+	SKUID string `json:"sku_id"`
+
+	// The ID of the parent application
+	ApplicationID string `json:"application_id"`
+
+	// The ID of the user that is granted access to the entitlement's sku
+	// Only available for user subscriptions.
+	UserID string `json:"user_id,omitempty"`
+
+	// The type of the entitlement
+	Type EntitlementType `json:"type"`
+
+	// The entitlement was deleted
+	Deleted bool `json:"deleted"`
+
+	// The start date at which the entitlement is valid.
+	// Not present when using test entitlements.
+	StartsAt *time.Time `json:"starts_at,omitempty"`
+
+	// The date at which the entitlement is no longer valid.
+	// Not present when using test entitlements or when receiving an ENTITLEMENT_CREATE event.
+	EndsAt *time.Time `json:"ends_at,omitempty"`
+
+	// The ID of the guild that is granted access to the entitlement's sku.
+	// Only available for guild subscriptions.
+	GuildID string `json:"guild_id,omitempty"`
+
+	// Whether or not the entitlement has been consumed.
+	// Only available for consumable items.
+	Consumed *bool `json:"consumed,omitempty"`
+
+	// The SubscriptionID of the entitlement.
+	// Not present when using test entitlements.
+	SubscriptionID string `json:"subscription_id,omitempty"`
+}
+
+// EntitlementOwnerType is the type of entitlement (see EntitlementOwnerType* consts)
+type EntitlementOwnerType int
+
+// Valid EntitlementOwnerType values
+const (
+	EntitlementOwnerTypeGuildSubscription EntitlementOwnerType = 1
+	EntitlementOwnerTypeUserSubscription  EntitlementOwnerType = 2
+)
+
+// EntitlementTest is used to test granting an entitlement to a user or guild
+type EntitlementTest struct {
+	// The ID of the SKU to grant the entitlement to
+	SKUID string `json:"sku_id"`
+
+	// The ID of the guild or user to grant the entitlement to
+	OwnerID string `json:"owner_id"`
+
+	// OwnerType is the type of which the entitlement should be created
+	OwnerType EntitlementOwnerType `json:"owner_type"`
+}
+
+// EntitlementFilterOptions are the options for filtering Entitlements
+type EntitlementFilterOptions struct {
+	// Optional user ID to look up for.
+	UserID string
+
+	// Optional array of SKU IDs to check for.
+	SkuIDs []string
+
+	// Optional timestamp to retrieve Entitlements before this time.
+	Before *time.Time
+
+	// Optional timestamp to retrieve Entitlements after this time.
+	After *time.Time
+
+	// Optional maximum number of entitlements to return (1-100, default 100).
+	Limit int
+
+	// Optional guild ID to look up for.
+	GuildID string
+
+	// Optional whether or not ended entitlements should be omitted.
+	ExcludeEnded bool
+}
+
 // Constants for the different bit offsets of text channel permissions
 const (
 	// Deprecated: PermissionReadMessages has been replaced with PermissionViewChannel for text and voice channels
-	PermissionReadMessages          = 0x0000000000000400
-	PermissionSendMessages          = 0x0000000000000800
-	PermissionSendTTSMessages       = 0x0000000000001000
-	PermissionManageMessages        = 0x0000000000002000
-	PermissionEmbedLinks            = 0x0000000000004000
-	PermissionAttachFiles           = 0x0000000000008000
-	PermissionReadMessageHistory    = 0x0000000000010000
-	PermissionMentionEveryone       = 0x0000000000020000
-	PermissionUseExternalEmojis     = 0x0000000000040000
-	PermissionUseSlashCommands      = 0x0000000080000000
-	PermissionManageThreads         = 0x0000000400000000
-	PermissionCreatePublicThreads   = 0x0000000800000000
-	PermissionCreatePrivateThreads  = 0x0000001000000000
-	PermissionUseExternalStickers   = 0x0000002000000000
-	PermissionSendMessagesInThreads = 0x0000004000000000
+	PermissionReadMessages = 1 << 10
+
+	// Allows for sending messages in a channel and creating threads in a forum (does not allow sending messages in threads).
+	PermissionSendMessages = 1 << 11
+
+	// Allows for sending of /tts messages.
+	PermissionSendTTSMessages = 1 << 12
+
+	// Allows for deletion of other users messages.
+	PermissionManageMessages = 1 << 13
+
+	// Links sent by users with this permission will be auto-embedded.
+	PermissionEmbedLinks = 1 << 14
+
+	// Allows for uploading images and files.
+	PermissionAttachFiles = 1 << 15
+
+	// Allows for reading of message history.
+	PermissionReadMessageHistory = 1 << 16
+
+	// Allows for using the @everyone tag to notify all users in a channel, and the @here tag to notify all online users in a channel.
+	PermissionMentionEveryone = 1 << 17
+
+	// Allows the usage of custom emojis from other servers.
+	PermissionUseExternalEmojis = 1 << 18
+
+	// Deprecated: PermissionUseSlashCommands has been replaced by PermissionUseApplicationCommands
+	PermissionUseSlashCommands = 1 << 31
+
+	// Allows members to use application commands, including slash commands and context menu commands.
+	PermissionUseApplicationCommands = 1 << 31
+
+	// Allows for deleting and archiving threads, and viewing all private threads.
+	PermissionManageThreads = 1 << 34
+
+	// Allows for creating public and announcement threads.
+	PermissionCreatePublicThreads = 1 << 35
+
+	// Allows for creating private threads.
+	PermissionCreatePrivateThreads = 1 << 36
+
+	// Allows the usage of custom stickers from other servers.
+	PermissionUseExternalStickers = 1 << 37
+
+	// Allows for sending messages in threads.
+	PermissionSendMessagesInThreads = 1 << 38
+
+	// Allows sending voice messages.
+	PermissionSendVoiceMessages = 1 << 46
+
+	// Allows sending polls.
+	PermissionSendPolls = 1 << 49
+
+	// Allows user-installed apps to send public responses. When disabled, users will still be allowed to use their apps but the responses will be ephemeral. This only applies to apps not also installed to the server.
+	PermissionUseExternalApps = 1 << 50
 )
 
 // Constants for the different bit offsets of voice permissions
 const (
-	PermissionVoicePrioritySpeaker = 0x0000000000000100
-	PermissionVoiceStreamVideo     = 0x0000000000000200
-	PermissionVoiceConnect         = 0x0000000000100000
-	PermissionVoiceSpeak           = 0x0000000000200000
-	PermissionVoiceMuteMembers     = 0x0000000000400000
-	PermissionVoiceDeafenMembers   = 0x0000000000800000
-	PermissionVoiceMoveMembers     = 0x0000000001000000
-	PermissionVoiceUseVAD          = 0x0000000002000000
-	PermissionVoiceRequestToSpeak  = 0x0000000100000000
-	PermissionUseActivities        = 0x0000008000000000
+	// Allows for using priority speaker in a voice channel.
+	PermissionVoicePrioritySpeaker = 1 << 8
+
+	// Allows the user to go live.
+	PermissionVoiceStreamVideo = 1 << 9
+
+	// Allows for joining of a voice channel.
+	PermissionVoiceConnect = 1 << 20
+
+	// Allows for speaking in a voice channel.
+	PermissionVoiceSpeak = 1 << 21
+
+	// Allows for muting members in a voice channel.
+	PermissionVoiceMuteMembers = 1 << 22
+
+	// Allows for deafening of members in a voice channel.
+	PermissionVoiceDeafenMembers = 1 << 23
+
+	// Allows for moving of members between voice channels.
+	PermissionVoiceMoveMembers = 1 << 24
+
+	// Allows for using voice-activity-detection in a voice channel.
+	PermissionVoiceUseVAD = 1 << 25
+
+	// Allows for requesting to speak in stage channels.
+	PermissionVoiceRequestToSpeak = 1 << 32
+
+	// Deprecated: PermissionUseActivities has been replaced by PermissionUseEmbeddedActivities.
+	PermissionUseActivities = 1 << 39
+
+	// Allows for using Activities (applications with the EMBEDDED flag) in a voice channel.
+	PermissionUseEmbeddedActivities = 1 << 39
+
+	// Allows for using soundboard in a voice channel.
+	PermissionUseSoundboard = 1 << 42
+
+	// Allows the usage of custom soundboard sounds from other servers.
+	PermissionUseExternalSounds = 1 << 45
 )
 
 // Constants for general management.
 const (
-	PermissionChangeNickname  = 0x0000000004000000
-	PermissionManageNicknames = 0x0000000008000000
-	PermissionManageRoles     = 0x0000000010000000
-	PermissionManageWebhooks  = 0x0000000020000000
-	PermissionManageEmojis    = 0x0000000040000000
-	PermissionManageEvents    = 0x0000000200000000
+	// Allows for modification of own nickname.
+	PermissionChangeNickname = 1 << 26
+
+	// Allows for modification of other users nicknames.
+	PermissionManageNicknames = 1 << 27
+
+	// Allows management and editing of roles.
+	PermissionManageRoles = 1 << 28
+
+	// Allows management and editing of webhooks.
+	PermissionManageWebhooks = 1 << 29
+
+	// Deprecated: PermissionManageEmojis has been replaced by PermissionManageGuildExpressions.
+	PermissionManageEmojis = 1 << 30
+
+	// Allows for editing and deleting emojis, stickers, and soundboard sounds created by all users.
+	PermissionManageGuildExpressions = 1 << 30
+
+	// Allows for editing and deleting scheduled events created by all users.
+	PermissionManageEvents = 1 << 33
+
+	// Allows for viewing role subscription insights.
+	PermissionViewCreatorMonetizationAnalytics = 1 << 41
+
+	// Allows for creating emojis, stickers, and soundboard sounds, and editing and deleting those created by the current user.
+	PermissionCreateGuildExpressions = 1 << 43
+
+	// Allows for creating scheduled events, and editing and deleting those created by the current user.
+	PermissionCreateEvents = 1 << 44
 )
 
 // Constants for the different bit offsets of general permissions
 const (
-	PermissionCreateInstantInvite = 0x0000000000000001
-	PermissionKickMembers         = 0x0000000000000002
-	PermissionBanMembers          = 0x0000000000000004
-	PermissionAdministrator       = 0x0000000000000008
-	PermissionManageChannels      = 0x0000000000000010
-	PermissionManageServer        = 0x0000000000000020
-	PermissionAddReactions        = 0x0000000000000040
-	PermissionViewAuditLogs       = 0x0000000000000080
-	PermissionViewChannel         = 0x0000000000000400
-	PermissionViewGuildInsights   = 0x0000000000080000
-	PermissionModerateMembers     = 0x0000010000000000
+	// Allows creation of instant invites.
+	PermissionCreateInstantInvite = 1 << 0
+
+	// Allows kicking members.
+	PermissionKickMembers = 1 << 1
+
+	// Allows banning members.
+	PermissionBanMembers = 1 << 2
+
+	// Allows all permissions and bypasses channel permission overwrites.
+	PermissionAdministrator = 1 << 3
+
+	// Allows management and editing of channels.
+	PermissionManageChannels = 1 << 4
+
+	// Deprecated: PermissionManageServer has been replaced by PermissionManageGuild.
+	PermissionManageServer = 1 << 5
+
+	// Allows management and editing of the guild.
+	PermissionManageGuild = 1 << 5
+
+	// Allows for the addition of reactions to messages.
+	PermissionAddReactions = 1 << 6
+
+	// Allows for viewing of audit logs.
+	PermissionViewAuditLogs = 1 << 7
+
+	// Allows guild members to view a channel, which includes reading messages in text channels and joining voice channels.
+	PermissionViewChannel = 1 << 10
+
+	// Allows for viewing guild insights.
+	PermissionViewGuildInsights = 1 << 19
+
+	// Allows for timing out users to prevent them from sending or reacting to messages in chat and threads, and from speaking in voice and stage channels.
+	PermissionModerateMembers = 1 << 40
 
 	PermissionAllText = PermissionViewChannel |
 		PermissionSendMessages |
@@ -2585,6 +3016,8 @@ const (
 	IntentGuildScheduledEvents        Intent = 1 << 16
 	IntentAutoModerationConfiguration Intent = 1 << 20
 	IntentAutoModerationExecution     Intent = 1 << 21
+	IntentGuildMessagePolls           Intent = 1 << 24
+	IntentDirectMessagePolls          Intent = 1 << 25
 
 	// TODO: remove when compatibility is not needed
 

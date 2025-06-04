@@ -11,7 +11,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/tyzbit/go-archive v0.0.0-20230720150823-69f1618c0490
 	gorm.io/driver/mysql v1.5.7
-	gorm.io/driver/sqlite v1.5.7
+	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.30.0
 )
 

@@ -38,11 +38,16 @@ type ApplicationCommand struct {
 	Type              ApplicationCommandType `json:"type,omitempty"`
 	Name              string                 `json:"name"`
 	NameLocalizations *map[Locale]string     `json:"name_localizations,omitempty"`
-	// NOTE: DefaultPermission will be soon deprecated. Use DefaultMemberPermissions and DMPermission instead.
+
+	// NOTE: DefaultPermission will be soon deprecated. Use DefaultMemberPermissions and Contexts instead.
 	DefaultPermission        *bool  `json:"default_permission,omitempty"`
 	DefaultMemberPermissions *int64 `json:"default_member_permissions,string,omitempty"`
-	DMPermission             *bool  `json:"dm_permission,omitempty"`
 	NSFW                     *bool  `json:"nsfw,omitempty"`
+
+	// Deprecated: use Contexts instead.
+	DMPermission     *bool                         `json:"dm_permission,omitempty"`
+	Contexts         *[]InteractionContextType     `json:"contexts,omitempty"`
+	IntegrationTypes *[]ApplicationIntegrationType `json:"integration_types,omitempty"`
 
 	// NOTE: Chat commands only. Otherwise it mustn't be set.
 
@@ -200,6 +205,18 @@ func (t InteractionType) String() string {
 	return fmt.Sprintf("InteractionType(%d)", t)
 }
 
+// InteractionContextType represents the context in which interaction can be used or was triggered from.
+type InteractionContextType uint
+
+const (
+	// InteractionContextGuild indicates that interaction can be used within guilds.
+	InteractionContextGuild InteractionContextType = 0
+	// InteractionContextBotDM indicates that interaction can be used within DMs with the bot.
+	InteractionContextBotDM InteractionContextType = 1
+	// InteractionContextPrivateChannel indicates that interaction can be used within group DMs and DMs with other users.
+	InteractionContextPrivateChannel InteractionContextType = 2
+)
+
 // Interaction represents data of an interaction.
 type Interaction struct {
 	ID        string          `json:"id"`
@@ -233,8 +250,15 @@ type Interaction struct {
 	// NOTE: this field is only filled when the interaction was invoked in a guild.
 	GuildLocale *Locale `json:"guild_locale"`
 
+	Context                      InteractionContextType                `json:"context"`
+	AuthorizingIntegrationOwners map[ApplicationIntegrationType]string `json:"authorizing_integration_owners"`
+
 	Token   string `json:"token"`
 	Version int    `json:"version"`
+
+	// Any entitlements for the invoking user, representing access to premium SKUs.
+	// NOTE: this field is only filled in monetized apps
+	Entitlements []*Entitlement `json:"entitlements"`
 }
 
 type interaction Interaction
@@ -326,6 +350,18 @@ type ApplicationCommandInteractionData struct {
 	TargetID string `json:"target_id"`
 }
 
+// GetOption finds and returns an application command option by its name.
+func (d ApplicationCommandInteractionData) GetOption(name string) (option *ApplicationCommandInteractionDataOption) {
+	for _, opt := range d.Options {
+		if opt.Name == name {
+			option = opt
+			break
+		}
+	}
+
+	return
+}
+
 // ApplicationCommandInteractionDataResolved contains resolved data of command execution.
 // Partial Member objects are missing user, deaf and mute fields.
 // Partial Channel objects only have id, name, type and permissions fields.
@@ -406,6 +442,18 @@ type ApplicationCommandInteractionDataOption struct {
 
 	// NOTE: autocomplete interaction only.
 	Focused bool `json:"focused,omitempty"`
+}
+
+// GetOption finds and returns an application command option by its name.
+func (o ApplicationCommandInteractionDataOption) GetOption(name string) (option *ApplicationCommandInteractionDataOption) {
+	for _, opt := range o.Options {
+		if opt.Name == name {
+			option = opt
+			break
+		}
+	}
+
+	return
 }
 
 // IntValue is a utility function for casting option value to integer
@@ -555,6 +603,7 @@ type InteractionResponseData struct {
 	AllowedMentions *MessageAllowedMentions `json:"allowed_mentions,omitempty"`
 	Files           []*File                 `json:"-"`
 	Attachments     *[]*MessageAttachment   `json:"attachments,omitempty"`
+	Poll            *Poll                   `json:"poll,omitempty"`
 
 	// NOTE: only MessageFlagsSuppressEmbeds and MessageFlagsEphemeral can be set.
 	Flags MessageFlags `json:"flags,omitempty"`

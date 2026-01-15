@@ -8,7 +8,7 @@ require (
 	github.com/golobby/config/v3 v3.4.2
 	github.com/google/uuid v1.6.0
 	github.com/mvdan/xurls v1.1.0
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	github.com/tyzbit/go-archive v0.0.0-20230720150823-69f1618c0490
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/sqlite v1.6.0
